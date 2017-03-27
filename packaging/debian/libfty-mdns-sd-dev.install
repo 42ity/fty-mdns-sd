@@ -1,0 +1,5 @@
+usr/include/*
+usr/lib/*/libfty_mdns_sd.so
+usr/lib/*/pkgconfig/libfty_mdns_sd.pc
+usr/share/man/man3/*
+usr/share/man/man7/*

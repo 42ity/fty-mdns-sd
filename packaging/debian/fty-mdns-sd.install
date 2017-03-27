@@ -1,0 +1,5 @@
+usr/bin/fty-mdns-sd
+usr/share/man/man1/fty-mdns-sd.1
+etc/fty-mdns-sd/fty-mdns-sd.cfg
+lib/systemd/system/fty-mdns-sd.service
+

@@ -29,7 +29,7 @@
 #include "fty_mdns_sd_classes.h"
 #include "avahi_wrapper.h" 
 
-#define TIMEOUT_MS 1000   //wait at least 30 seconds
+#define TIMEOUT_MS 5000   //wait at least 5 seconds
 
 //  Structure of our class
 
@@ -38,18 +38,21 @@ struct _fty_mdns_sd_server_t {
     bool verbose;            // is actor verbose or not
     char *name;              // actor name
     mlm_client_t *client;    // malamute client
-    AvahiWrapper *service; // service mDNS-SD
+    char *fty_info_command;  
+    AvahiWrapper *service;   // service mDNS-SD
+    
     //default service announcement definition
     char *srv_name;
     char *srv_type;
     char *srv_stype;
     char *srv_port;
-    char *fty_info_command;
+    //TXT attributes
     zhash_t *map_txt;
 };
 
 //free dynamic item
-static void s_destroy_txt(void *arg){
+static void s_destroy_txt(void *arg)
+{
     char *value=(char*)arg;
     zstr_free(&value);
 }
@@ -111,7 +114,6 @@ s_set_srv_stype(fty_mdns_sd_server_t *self,const char *value)
 }
 //  --------------------------------------------------------------------------
 //  Create a new fty_mdns_sd_server
-
 fty_mdns_sd_server_t *
 fty_mdns_sd_server_new (const char* name)
 {
@@ -124,14 +126,14 @@ fty_mdns_sd_server_new (const char* name)
         free (self);
         return NULL;
     }
-    self->name = strdup (name);
-    self->client = mlm_client_new();
+    self->name    = strdup (name);
+    self->client  = mlm_client_new();
     self->service = new AvahiWrapper(); // service mDNS-SD
     self->map_txt = zhash_new();
+    
     //do minimal initialization
     s_set_txt_record(self,"uuid",
         "00000000-0000-0000-0000-000000000000");
-
     return self;
 }
 
@@ -161,8 +163,8 @@ fty_mdns_sd_server_destroy (fty_mdns_sd_server_t **self_p)
     }
 }
 
-
-
+//  --------------------------------------------------------------------------
+//  get info from fty-info agent
 
 static int
 s_poll_fty_info(fty_mdns_sd_server_t *self)
@@ -197,18 +199,17 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
     zframe_t *frame_infos = zmsg_next (resp);
     zhash_t *infos = zhash_unpack(frame_infos);
     
-    s_set_txt_record(self, "uuid", (char*)zhash_lookup (infos, "uuid"));
-    s_set_txt_record(self, "name", (char*)zhash_lookup (infos, "name"));
-    s_set_txt_record(self, "model",(char*)zhash_lookup (infos, "model"));
-    s_set_txt_record(self, "vendor", (char*)zhash_lookup (infos, "vendor"));
-    s_set_txt_record(self, "serial", (char*)zhash_lookup (infos, "serial"));
+    s_set_txt_record(self, "uuid",     (char*)zhash_lookup (infos, "uuid"));
+    s_set_txt_record(self, "name",     (char*)zhash_lookup (infos, "name"));
+    s_set_txt_record(self, "model",    (char*)zhash_lookup (infos, "model"));
+    s_set_txt_record(self, "vendor",   (char*)zhash_lookup (infos, "vendor"));
+    s_set_txt_record(self, "serial",   (char*)zhash_lookup (infos, "serial"));
     s_set_txt_record(self, "location", (char*)zhash_lookup (infos, "location"));
-    s_set_txt_record(self, "path", (char*)zhash_lookup (infos, "rest_path"));
+    s_set_txt_record(self, "path",     (char*)zhash_lookup (infos, "rest_path"));
     
     s_set_srv_port(self, (char *) zhash_lookup (infos, "rest_port"));
 
     zhash_destroy(&infos);
-    
     zmsg_destroy(&resp);
     zmsg_destroy(&send);
     

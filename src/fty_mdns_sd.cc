@@ -77,15 +77,13 @@ main (int argc, char *argv [])
     char* actor_name = (char*)"fty-mdns-sd";
     char* endpoint = (char*)"ipc://@/malamute";
     
-    map_string_t map_service;
     map_string_t map_txt;
     
-
     //get info from env
-    char* srv_name = getenv("FTY_MDNS_SD_SRV_NAME");
-    char* srv_type = getenv("FTY_MDNS_SD_SRV_TYPE");
+    char* srv_name  = getenv("FTY_MDNS_SD_SRV_NAME");
+    char* srv_type  = getenv("FTY_MDNS_SD_SRV_TYPE");
     char* srv_stype = getenv("FTY_MDNS_SD_SRV_STYPE");
-    char* srv_port = getenv("FTY_MDNS_SD_SRV_PORT");
+    char* srv_port  = getenv("FTY_MDNS_SD_SRV_PORT");
     
     char*fty_info_command = (char*)"INFO";
 
@@ -116,8 +114,6 @@ main (int argc, char *argv [])
         }
     }
 
-    
-    
     //parse config file 
     if(config_file){
         zsys_debug ("fty_mdns_sd:LOAD: %s", config_file);
@@ -136,10 +132,10 @@ main (int argc, char *argv [])
         //get default announce if available
         zconfig_t *config_service =zconfig_locate(config,"default/service");
         //default service
-        srv_name = s_get (config_service, "name", srv_name);
-        srv_type = s_get (config_service, "type", srv_type);
+        srv_name  = s_get (config_service, "name",  srv_name);
+        srv_type  = s_get (config_service, "type",  srv_type);
         srv_stype = s_get (config_service, "stype", srv_stype);
-        srv_port  = s_get (config_service, "port", srv_port);
+        srv_port  = s_get (config_service, "port",  srv_port);
         
         //TXT default records
         zconfig_t *config_txt =zconfig_locate(config,"default/properties");
@@ -169,10 +165,10 @@ main (int argc, char *argv [])
     assert (server);
     zstr_sendx (server, "CONNECT", endpoint, NULL);
     
-    
+    ////set attributes for default service
     zstr_sendx (server, "SET-DEFAULT-SERVICE",
             srv_name,srv_type,srv_stype,srv_port, NULL);
-    
+    ////set TXT for default service
     for (map_string_t::iterator it = map_txt.begin(); it != map_txt.end(); ++it) {
         zstr_sendx (server, "SET-DEFAULT-TXT",
             it->first.c_str(),it->second.c_str(), NULL);

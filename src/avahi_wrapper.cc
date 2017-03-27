@@ -27,7 +27,8 @@
 #include "avahi_wrapper.h"
 #include <czmq.h>
 
-AvahiWrapper::~AvahiWrapper() {
+AvahiWrapper::~AvahiWrapper() 
+{
     // Free all resources.
     stop();
     if (_txtRecords) avahi_string_list_free(_txtRecords);

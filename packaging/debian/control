@@ -1,5 +1,5 @@
 #
-#    fty-mdns-sd - This service manages network anouncement(mDNS) and discovery (DNS-SD)
+#    fty-mdns-sd - This service manages network anouncement (mDNS) and discovery (DNS-SD)
 #
 #    Copyright (C) 2014 - 2017 Eaton                                        
 #                                                                           
@@ -24,7 +24,7 @@ Maintainer:     fty-mdns-sd Developers <eatonipcopensource@eaton.com>
 Standards-Version: 3.9.7
 Build-Depends: debhelper (>= 9),
     pkg-config,
-    libzmq4-dev,
+    libzmq3-dev,
     libczmq-dev,
     libmlm-dev,
     libavahi-client-dev,
@@ -37,27 +37,27 @@ Build-Depends: debhelper (>= 9),
 Package: libfty-mdns-sd0
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: this service manages network anouncement(mdns) and discovery (dns-sd) shared library
- This package contains shared library for fty-mdns-sd: this service manages network anouncement(mdns) and discovery (dns-sd)
+Description: this service manages network anouncement (mdns) and discovery (dns-sd) shared library
+ This package contains shared library for fty-mdns-sd: this service manages network anouncement (mdns) and discovery (dns-sd)
 
 Package: libfty-mdns-sd-dev
 Architecture: any
 Section: libdevel
 Depends:
-    libzmq4-dev,
+    libzmq3-dev,
     libczmq-dev,
     libmlm-dev,
     libavahi-client-dev,
     libfty-proto-dev,
     libfty-mdns-sd0 (= ${binary:Version})
-Description: this service manages network anouncement(mdns) and discovery (dns-sd) development tools
- This package contains development files for fty-mdns-sd: this service manages network anouncement(mdns) and discovery (dns-sd)
+Description: this service manages network anouncement (mdns) and discovery (dns-sd) development tools
+ This package contains development files for fty-mdns-sd: this service manages network anouncement (mdns) and discovery (dns-sd)
 
 Package: fty-mdns-sd
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends},
-Description: this service manages network anouncement(mdns) and discovery (dns-sd)
- Main package for fty-mdns-sd: this service manages network anouncement(mdns) and discovery (dns-sd)
+Description: this service manages network anouncement (mdns) and discovery (dns-sd)
+ Main package for fty-mdns-sd: this service manages network anouncement (mdns) and discovery (dns-sd)
 
 Package: fty-mdns-sd-dbg
 Architecture: any
@@ -66,6 +66,6 @@ Priority: extra
 Depends:
     fty-mdns-sd (= ${binary:Version}),
     ${misc:Depends}
-Description: this service manages network anouncement(mdns) and discovery (dns-sd) debugging symbols
- This package contains the debugging symbols for fty-mdns-sd : this service manages network anouncement(mdns) and discovery (dns-sd).
+Description: this service manages network anouncement (mdns) and discovery (dns-sd) debugging symbols
+ This package contains the debugging symbols for fty-mdns-sd : this service manages network anouncement (mdns) and discovery (dns-sd).
 

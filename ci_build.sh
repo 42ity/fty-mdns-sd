@@ -268,7 +268,7 @@ if [ "$BUILD_TYPE" == "default" ] || [ "$BUILD_TYPE" == "default-Werror" ] || [ 
     fi
 
     # Start of recipe for dependency: avahi-client
-    if ! (command -v dpkg-query >/dev/null 2>&1 && dpkg-query --list avahi-client-dev >/dev/null 2>&1) || \
+    if ! (command -v dpkg-query >/dev/null 2>&1 && dpkg-query --list libavahi-client-dev >/dev/null 2>&1) || \
            (command -v brew >/dev/null 2>&1 && brew ls --versions avahi-client >/dev/null 2>&1) \
     ; then
         echo ""

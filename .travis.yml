@@ -9,6 +9,8 @@ cache: ccache
 os:
 - linux
 
+dist: trusty
+
 sudo: false
 
 # Set CI_TIME=true to enable build-step profiling in Travis
@@ -22,7 +24,7 @@ env:
   matrix:
     - BUILD_TYPE=default
     - BUILD_TYPE=default-Werror
-    - BUILD_TYPE=cmake
+#    - BUILD_TYPE=cmake
 #   - BUILD_TYPE=android
 #   - BUILD_TYPE=check-py
 
@@ -38,11 +40,11 @@ matrix:
           key_url: 'http://download.opensuse.org/repositories/network:/messaging:/zeromq:/git-draft/xUbuntu_14.04/Release.key'
         packages:
         - valgrind
-        - libzmq3-dev
-        - libczmq-dev
-        - libmlm-dev
-        - avahi-client-dev
-        - libfty-proto-dev
+        - libavahi-client-dev
+#        - libfty-proto-dev
+#        - libzmq3-dev
+#        - libczmq-dev
+#        - libmlm-dev
 
 addons:
   apt:
@@ -52,11 +54,11 @@ addons:
     packages:
     - asciidoc
     - xmlto
-    - libzmq3-dev
-    - libczmq-dev
-    - libmlm-dev
-    - avahi-client-dev
-    - libfty-proto-dev
+    - libavahi-client-dev
+#    - libzmq3-dev
+#    - libczmq-dev
+#    - libmlm-dev
+#    - libfty-proto-dev
 
 before_install:
 - if [ $TRAVIS_OS_NAME == "osx" ] ; then brew update; brew install binutils ; fi

@@ -20,6 +20,7 @@
         min_major = "3" min_minor = "0" min_patch = "2" />
     <use project = "malamute" test = "mlm_server_test"/>
     <use project = "avahi-client"
+        debian_name = "libavahi-client-dev"
         min_major ="0" min_minor="6" min_patch="31"
         header = "avahi-client/client.h" />
 

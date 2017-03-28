@@ -31,7 +31,7 @@
 Name:           fty-mdns-sd
 Version:        1.0.0
 Release:        1
-Summary:        This service manages network anouncement (mDNS) and discovery (DNS-SD)
+Summary:        this service manages network anouncement (mdns) and discovery (dns-sd)
 License:        GPL-2.0+
 URL:            https://42ity.com/
 Source0:        %{name}-%{version}.tar.gz

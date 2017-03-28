@@ -38,7 +38,7 @@ matrix:
           key_url: 'http://download.opensuse.org/repositories/network:/messaging:/zeromq:/git-draft/xUbuntu_14.04/Release.key'
         packages:
         - valgrind
-        - avahi-client-dev
+        - libavahi-client-dev
 #        - libfty-proto-dev
 #        - libzmq3-dev
 #        - libczmq-dev
@@ -52,7 +52,7 @@ addons:
     packages:
     - asciidoc
     - xmlto
-    - avahi-client-dev
+    - libavahi-client-dev
 #    - libzmq3-dev
 #    - libczmq-dev
 #    - libmlm-dev

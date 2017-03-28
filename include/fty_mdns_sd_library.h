@@ -32,6 +32,7 @@
 //  External dependencies
 #include <czmq.h>
 #include <malamute.h>
+#include <avahi-client/client.h>
 #include <ftyproto.h>
 
 //  FTY_MDNS_SD version macros for compile-time API detection

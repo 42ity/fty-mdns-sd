@@ -1,5 +1,5 @@
 #
-#    fty-mdns-sd - This service manages network anouncement(mDNS) and discovery (DNS-SD)
+#    fty-mdns-sd - This service manages network anouncement (mDNS) and discovery (DNS-SD)
 #
 #    Copyright (C) 2014 - 2017 Eaton                                        
 #                                                                           
@@ -31,7 +31,7 @@
 Name:           fty-mdns-sd
 Version:        1.0.0
 Release:        1
-Summary:        this service manages network anouncement(mdns) and discovery (dns-sd)
+Summary:        This service manages network anouncement (mDNS) and discovery (DNS-SD)
 License:        GPL-2.0+
 URL:            https://42ity.com/
 Source0:        %{name}-%{version}.tar.gz
@@ -58,14 +58,14 @@ BuildRequires:  fty-proto-devel
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description
-fty-mdns-sd this service manages network anouncement(mdns) and discovery (dns-sd).
+fty-mdns-sd this service manages network anouncement (mdns) and discovery (dns-sd).
 
 %package -n libfty_mdns_sd0
 Group:          System/Libraries
-Summary:        this service manages network anouncement(mdns) and discovery (dns-sd) shared library
+Summary:        this service manages network anouncement (mdns) and discovery (dns-sd) shared library
 
 %description -n libfty_mdns_sd0
-This package contains shared library for fty-mdns-sd: this service manages network anouncement(mdns) and discovery (dns-sd)
+This package contains shared library for fty-mdns-sd: this service manages network anouncement (mdns) and discovery (dns-sd)
 
 %post -n libfty_mdns_sd0 -p /sbin/ldconfig
 %postun -n libfty_mdns_sd0 -p /sbin/ldconfig
@@ -75,7 +75,7 @@ This package contains shared library for fty-mdns-sd: this service manages netwo
 %{_libdir}/libfty_mdns_sd.so.*
 
 %package devel
-Summary:        this service manages network anouncement(mdns) and discovery (dns-sd)
+Summary:        this service manages network anouncement (mdns) and discovery (dns-sd)
 Group:          System/Libraries
 Requires:       libfty_mdns_sd0 = %{version}
 Requires:       zeromq-devel
@@ -85,8 +85,8 @@ Requires:       avahi-client-devel
 Requires:       fty-proto-devel
 
 %description devel
-this service manages network anouncement(mdns) and discovery (dns-sd) development tools
-This package contains development files for fty-mdns-sd: this service manages network anouncement(mdns) and discovery (dns-sd)
+this service manages network anouncement (mdns) and discovery (dns-sd) development tools
+This package contains development files for fty-mdns-sd: this service manages network anouncement (mdns) and discovery (dns-sd)
 
 %files devel
 %defattr(-,root,root)
@@ -113,6 +113,7 @@ find %{buildroot} -name '*.la' | xargs rm -f
 
 %files
 %defattr(-,root,root)
+%doc README.md
 %{_bindir}/fty-mdns-sd
 %{_mandir}/man1/fty-mdns-sd*
 %config(noreplace) %{_sysconfdir}/fty-mdns-sd/fty-mdns-sd.cfg

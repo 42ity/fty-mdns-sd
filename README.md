@@ -1,9 +1,8 @@
 # fty-mdns-sd
-to manage network announcement(mDNS) and discovery (DNS-SD)
-it collects information from fty-info agent, then it publishes it to 
-avahi-deamon
+Manages network announcement(mDNS) and discovery (DNS-SD) by collecting
+information from fty-info agent, then publishing it through avahi-deamon
 
-default configuration values are in fty-mdns-sd.cfg file (section default)
+The default configuration values are in fty-mdns-sd.cfg file (section default)
 
 limitation: discovery is not yet managed
 

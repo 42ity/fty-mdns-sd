@@ -3,8 +3,8 @@
 
 [Unit]
 Description=fty-mdns-sd service
-After=malamute.service network.target fty-info
-Requires=malamute.service network.target fty-info
+After=malamute.service network.target fty-info.service avahi-daemon.service
+Requires=malamute.service network.target fty-info.service avahi-daemon.service
 # Conflicts=shutdown.target
 PartOf=bios.target
 
@@ -13,6 +13,7 @@ Type=simple
 Environment="prefix=@prefix@"
 ExecStart=@prefix@/bin/fty-mdns-sd @sysconfdir@/@PACKAGE@/fty-mdns-sd.cfg
 Restart=always
+# TODO: BIOS/FTY config files and user?
 
 [Install]
 WantedBy=bios.target

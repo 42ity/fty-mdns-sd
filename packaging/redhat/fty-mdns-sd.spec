@@ -56,6 +56,7 @@ BuildRequires:  malamute-devel
 BuildRequires:  avahi-client-devel
 BuildRequires:  fty-proto-devel
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
+Requires:       avahi
 
 %description
 fty-mdns-sd this service manages network anouncement (mdns) and discovery (dns-sd).

@@ -55,7 +55,7 @@ Description: this service manages network anouncement (mdns) and discovery (dns-
 
 Package: fty-mdns-sd
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends}, avahi-daemon
 Description: this service manages network anouncement (mdns) and discovery (dns-sd)
  Main package for fty-mdns-sd: this service manages network anouncement (mdns) and discovery (dns-sd)
 

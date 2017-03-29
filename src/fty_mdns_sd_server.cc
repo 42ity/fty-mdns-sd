@@ -1,21 +1,21 @@
 /*  =========================================================================
     fty_mdns_sd_server - 42ity mdns sd server
 
-    Copyright (C) 2014 - 2017 Eaton                                        
-                                                                           
-    This program is free software; you can redistribute it and/or modify   
-    it under the terms of the GNU General Public License as published by   
-    the Free Software Foundation; either version 2 of the License, or      
-    (at your option) any later version.                                    
-                                                                           
-    This program is distributed in the hope that it will be useful,        
-    but WITHOUT ANY WARRANTY; without even the implied warranty of         
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the          
-    GNU General Public License for more details.                           
-                                                                           
+    Copyright (C) 2014 - 2017 Eaton
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
     You should have received a copy of the GNU General Public License along
     with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.            
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
     =========================================================================
 */
 
@@ -27,20 +27,20 @@
 */
 
 #include "fty_mdns_sd_classes.h"
-#include "avahi_wrapper.h" 
+#include "avahi_wrapper.h"
 
 #define TIMEOUT_MS 5000   //wait at least 5 seconds
 
 //  Structure of our class
 
-    
+
 struct _fty_mdns_sd_server_t {
     bool verbose;            // is actor verbose or not
     char *name;              // actor name
     mlm_client_t *client;    // malamute client
-    char *fty_info_command;  
+    char *fty_info_command;
     AvahiWrapper *service;   // service mDNS-SD
-    
+
     //default service announcement definition
     char *srv_name;
     char *srv_type;
@@ -130,7 +130,7 @@ fty_mdns_sd_server_new (const char* name)
     self->client  = mlm_client_new();
     self->service = new AvahiWrapper(); // service mDNS-SD
     self->map_txt = zhash_new();
-    
+
     //do minimal initialization
     s_set_txt_record(self,"uuid",
         "00000000-0000-0000-0000-000000000000");
@@ -155,7 +155,7 @@ fty_mdns_sd_server_destroy (fty_mdns_sd_server_t **self_p)
         zstr_free (&self->srv_port);
         zstr_free (&self->fty_info_command);
         mlm_client_destroy (&self->client);
-        zhash_destroy (&self->map_txt); 
+        zhash_destroy (&self->map_txt);
         delete self->service;
         //  Free object itself
         free (self);
@@ -170,7 +170,7 @@ static int
 s_poll_fty_info(fty_mdns_sd_server_t *self)
 {
     assert (self);
-    
+
     zmsg_t *send = zmsg_new ();
     zmsg_addstr (send, self->fty_info_command);
     zuuid_t *uuid = zuuid_new ();
@@ -183,22 +183,22 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
         zuuid_destroy(&uuid);
         return -2;
     }
-        
-    zmsg_t *resp = mlm_client_recv(self->client);    
+
+    zmsg_t *resp = mlm_client_recv(self->client);
     if (!resp)
     {
         zsys_error ("info: client->recv (timeout = '5') returned NULL");
         return -3;
     }
-    
+
     char *zuuid_reply = zmsg_popstr (resp);
     //TODO : check UUID if you think it is important
     zstr_free(&zuuid_reply);
     zuuid_destroy(&uuid);
-    
+
     zframe_t *frame_infos = zmsg_next (resp);
     zhash_t *infos = zhash_unpack(frame_infos);
-    
+
     s_set_txt_record(self, "uuid",     (char*)zhash_lookup (infos, "uuid"));
     s_set_txt_record(self, "name",     (char*)zhash_lookup (infos, "name"));
     s_set_txt_record(self, "model",    (char*)zhash_lookup (infos, "model"));
@@ -206,13 +206,13 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
     s_set_txt_record(self, "serial",   (char*)zhash_lookup (infos, "serial"));
     s_set_txt_record(self, "location", (char*)zhash_lookup (infos, "location"));
     s_set_txt_record(self, "path",     (char*)zhash_lookup (infos, "rest_path"));
-    
+
     s_set_srv_port(self, (char *) zhash_lookup (infos, "rest_port"));
 
     zhash_destroy(&infos);
     zmsg_destroy(&resp);
     zmsg_destroy(&send);
-    
+
     return 0;
 }
 
@@ -228,15 +228,15 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
 
     zpoller_t *poller = zpoller_new (pipe, mlm_client_msgpipe (self->client), NULL);
     assert (poller);
-    
+
     // do not forget to send a signal to actor :)
-    zsock_signal (pipe, 0); 
-    
-    zsys_info ("fty-mdns-sd-server: Started",self->name);
-    // wait for interval left
-    void *which = zpoller_wait (poller, -1);
+    zsock_signal (pipe, 0);
+
+    zsys_info ("fty-mdns-sd-server: Started with name '%s'",self->name);
+
     while (!zsys_interrupted) {
-            
+        void *which = zpoller_wait (poller, -1);
+
         if (which == pipe) {
             zmsg_t *message = zmsg_recv (pipe);
             if (!message)
@@ -284,7 +284,7 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
                 zstr_free(&type);
                 zstr_free(&stype);
                 zstr_free(&port);
-                
+
             }
             else if (streq (command, "SET-DEFAULT-TXT")) {
                 char *key   = zmsg_popstr (message);
@@ -294,7 +294,7 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
                  s_set_txt_record(self,key,value);
                 zstr_free(&key);
                 zstr_free(&value);
-                
+
             }
             else if (streq (command, "DO-DEFAULT-ANNOUNCE")) {
                 //free previous value
@@ -320,7 +320,7 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
                 }
                 self->service->start();
             }
-            
+
             else
                 zsys_warning ("%s:\tUnkown API command=%s, ignoring", self->name, command);
             zstr_free (&command);
@@ -332,7 +332,7 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
     self->service->stop();
     fty_mdns_sd_server_destroy (&self);
     zpoller_destroy (&poller);
-    
+
 }
 //  --------------------------------------------------------------------------
 //  Self test of this class
@@ -347,17 +347,17 @@ fty_mdns_sd_server_test (bool verbose)
 
     zactor_t *server = zactor_new (fty_mdns_sd_server, (void*)"fty-mdns-sd-test");
     assert (server);
-    
+
     zstr_sendx (server, "CONNECT", "ipc://@/malamute", NULL);
-    
+
     zclock_sleep (1000);
-    
-    
+
+
     zstr_sendx (server, "SET-DEFAULT-SERVICE",
             "IPC","_https._tcp.","_powerservice._sub._https._tcp.","443", NULL);
     zstr_sendx (server, "SET-DEFAULT-TXT",
             "txtvers","1.0.0",NULL);
-    
+
     //do first announcement
     //this test needs avahi-deamon running
     //zstr_sendx (server, "DO-DEFAULT-ANNOUNCE", "INFO",NULL);

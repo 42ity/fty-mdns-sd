@@ -11,7 +11,7 @@ PartOf=bios.target
 [Service]
 Type=simple
 Environment="prefix=@prefix@"
-ExecStart=@prefix@/bin/fty-mdns-sd @sysconfdir@/@PACKAGE@/fty-mdns-sd.cfg
+ExecStart=@prefix@/bin/fty-mdns-sd -c @sysconfdir@/@PACKAGE@/fty-mdns-sd.cfg
 Restart=always
 # TODO: BIOS/FTY config files and user?
 

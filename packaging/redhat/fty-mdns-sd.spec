@@ -56,6 +56,8 @@ BuildRequires:  malamute-devel
 BuildRequires:  avahi-client-devel
 BuildRequires:  fty-proto-devel
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
+# Note: manually edited below to add avahi
+# TODO: generate via zproject
 Requires:       avahi
 
 %description

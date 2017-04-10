@@ -1,6 +1,6 @@
 #   fty-mdns-sd configuration
 server
-    verbose = true                                 #   To setup verbose 
+    verbose = true                                 #   To setup verbose
 
 fty-info
     name = fty-info
@@ -21,7 +21,7 @@ default
     properties                           # TXT properties
         txtvers   = 1
         #name      = INTELLIGENT POWER CONTROLLER
-        #location  = unknown              
+        #location  = unknown
         #path      = /api/v1
         #model     = IPC3000
         #type      = ipc

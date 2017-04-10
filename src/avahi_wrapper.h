@@ -1,24 +1,24 @@
 /*
  *   =========================================================================
  *    Copyright (C) 2014 - 2017 Eaton
- * 
+ *
  *    This program is free software; you can redistribute it and/or modify
  *     it under the terms of the GNU General Public License as published by
  *    the Free Software Foundation; either version 2 of the License, or
  *    (at your option) any later version.
- * 
+ *
  *    This program is distributed in the hope that it will be useful,
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
- * 
+ *
  *    You should have received a copy of the GNU General Public License along
  *    with this program; if not, write to the Free Software Foundation, Inc.,
  *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *   =========================================================================
  */
 
-/* 
+/*
  * File:   avahi_wrapper.h
  *
  */
@@ -59,7 +59,7 @@ protected:
 
     std::string getServiceName(const std::string &service_name,const std::string &uuid);
     AvahiEntryGroup* create_service(AvahiClient* client,char* serviceName,map_string_t &serviceDefinition,AvahiStringList *txtRecords);
-            
+
     /**
      * All class variable to handle the avahi client object.
      */
@@ -70,31 +70,31 @@ protected:
 public:
 
     ~AvahiWrapper();
-    
+
     void setServiceDefinition(
         const std::string& service_name,
         const std::string& service_type,
         const std::string& service_stype,
         const std::string& port,
         const std::string& uuid);
-    
+
     void setTxtRecords(char* key, char*value);
     //int  publishTxtRecords(map_string_t& properties);
 
     void setHostName(const std::string& name);
-    
+
     void printError(const std::string& msg, const char* errorNo);
 
-    int start(); 
+    int start();
 
-    void stop(); 
+    void stop();
 
 protected:
 
-    void onClientRunning(AvahiClient* client); 
+    void onClientRunning(AvahiClient* client);
 
-    static void clientCallback(AvahiClient* client, AvahiClientState state, void *userdata); 
+    static void clientCallback(AvahiClient* client, AvahiClientState state, void *userdata);
 
-    static void groupCallback(AvahiEntryGroup* group, AvahiEntryGroupState state, void *userdata); 
+    static void groupCallback(AvahiEntryGroup* group, AvahiEntryGroupState state, void *userdata);
 };
 #endif

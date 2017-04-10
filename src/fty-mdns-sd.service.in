@@ -10,10 +10,14 @@ PartOf=bios.target
 
 [Service]
 Type=simple
+User=bios
+EnvironmentFile=-@prefix@/share/bios/etc/default/bios
+EnvironmentFile=-@prefix@/share/bios/etc/default/bios__%n.conf
+EnvironmentFile=-@sysconfdir@/default/bios
+EnvironmentFile=-@sysconfdir@/default/bios__%n.conf
 Environment="prefix=@prefix@"
 ExecStart=@prefix@/bin/fty-mdns-sd -c @sysconfdir@/@PACKAGE@/fty-mdns-sd.cfg
 Restart=always
-# TODO: BIOS/FTY config files and user?
 
 [Install]
 WantedBy=bios.target

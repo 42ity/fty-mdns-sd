@@ -340,7 +340,45 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
             zstr_free (&command);
             zmsg_destroy (&message);
         }// end of comand pipe processing
-
+        else if (which == mlm_client_msgpipe (self->client)) {
+            zmsg_t *message = mlm_client_recv (self->client);
+            if (message) {
+                char *cmd = zmsg_popstr (message);
+                if (cmd) {
+                    // -------------------------------------------------- IPC message
+                    if (streq (cmd, "IPC")) {
+                        char *name  = zmsg_popstr (message);
+                        char *type  = zmsg_popstr (message);
+                        char *stype = zmsg_popstr (message);
+                        char *port  = zmsg_popstr (message);
+                        zframe_t *infosframe = zmsg_pop (message);
+                        zhash_t *infos = zhash_unpack (infosframe);
+                        if (name && type && stype && port && infos) {
+                            s_set_srv_name(self,name);
+                            s_set_srv_type(self,type);
+                            s_set_srv_stype(self,stype);
+                            s_set_srv_port(self,port);
+                            const char *value = (const char *)zhash_first (infos);
+                            while (value) {
+                                const char *key = zhash_cursor (infos);
+                                s_set_txt_record (self, key, value);
+                                value = (const char *)zhash_next (infos);
+                            }
+                        } else {
+                            zsys_error ("Malformed IPC message received");
+                        }
+                        zhash_destroy (&infos);
+                        zframe_destroy (&infosframe);
+                        zstr_free(&name);
+                        zstr_free(&type);
+                        zstr_free(&stype);
+                        zstr_free(&port);
+                    }
+                    zstr_free (&cmd);
+                }
+                zmsg_destroy (&message);
+            }
+        }
     }
 
     self->service->stop();

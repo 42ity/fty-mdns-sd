@@ -268,6 +268,20 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
                 zsys_debug("fty-mdns-sd-server: CONNECT %s/%s",endpoint,self->name);
                 zstr_free (&endpoint);
             }
+            else if (streq (command, "CONSUMER")) {
+                char *stream = zmsg_popstr (message);
+                char *pattern = zmsg_popstr (message);
+                if (stream && pattern) {
+                    int r = mlm_client_set_consumer (self->client, stream, pattern);
+                    if (r == -1) {
+                        zsys_error ("%s:\tSet consumer to '%s' with pattern '%s' failed", self->name, stream, pattern);
+                    }
+                } else {
+                    zsys_error ("%s:\tMissing params in CONSUMER command", self->name);
+                }
+                zstr_free (&stream);
+                zstr_free (&pattern);
+            }
             else if (streq (command, "SET-DEFAULT-SERVICE")) {
                  //set new ones
                 char *name  = zmsg_popstr (message);

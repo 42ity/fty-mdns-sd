@@ -112,6 +112,7 @@ s_set_srv_stype(fty_mdns_sd_server_t *self,const char *value)
     self->srv_stype = _value;
 
 }
+
 //  --------------------------------------------------------------------------
 //  Create a new fty_mdns_sd_server
 fty_mdns_sd_server_t *
@@ -325,13 +326,7 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
                     self->srv_port,
                     (char*)zhash_lookup (self->map_txt, "uuid"));
                 //set all txt properties
-                char *value = (char *) zhash_first (self->map_txt);   // first value
-                while ( value != NULL )
-                {
-                    char *key = (char *) zhash_cursor (self->map_txt);   // key of this value
-                    self->service->setTxtRecords (key,value);
-                    value = (char *) zhash_next (self->map_txt);   // next value
-                }
+                self->service->setTxtRecords (self->map_txt);
                 self->service->start();
             }
 
@@ -346,7 +341,8 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
                 char *cmd = zmsg_popstr (message);
                 if (cmd) {
                     // -------------------------------------------------- IPC message
-                    if (streq (cmd, "IPC")) {
+                    if (streq (cmd, "IPC") && self->service) {
+                        // this suppose to be an update, service must be created already
                         char *name  = zmsg_popstr (message);
                         char *type  = zmsg_popstr (message);
                         char *stype = zmsg_popstr (message);
@@ -358,12 +354,8 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
                             s_set_srv_type(self,type);
                             s_set_srv_stype(self,stype);
                             s_set_srv_port(self,port);
-                            const char *value = (const char *)zhash_first (infos);
-                            while (value) {
-                                const char *key = zhash_cursor (infos);
-                                s_set_txt_record (self, key, value);
-                                value = (const char *)zhash_next (infos);
-                            }
+                            self->service->setTxtRecords (infos);
+                            self->service->update ();
                         } else {
                             zsys_error ("Malformed IPC message received");
                         }

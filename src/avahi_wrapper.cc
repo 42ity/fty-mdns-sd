@@ -54,10 +54,15 @@ void AvahiWrapper::setServiceDefinition(
     _serviceDefinition[SERVICE_TYPE_KEY]    = std::string(service_type);
     _serviceDefinition[SERVICE_SUBTYPE_KEY] = std::string(service_stype);
     _serviceDefinition[SERVICE_PORT_KEY]    = std::string(port);
-
 }
 
-void AvahiWrapper::setTxtRecords(char* key, char*value)
+void AvahiWrapper::clearTxtRecords()
+{
+    if (_txtRecords) avahi_string_list_free(_txtRecords);
+    _txtRecords = NULL;
+}
+
+void AvahiWrapper::setTxtRecord(const char* key, const char*value)
 {
     std::string _key = std::string(key);
     std::string _value = std::string(value);
@@ -65,39 +70,28 @@ void AvahiWrapper::setTxtRecords(char* key, char*value)
     zsys_info("avahi_string_list_add(TXT %s)",(_key + "=" + _value).c_str());
 
 }
-/*TODO : rework it
-int AvahiWrapper::publishTxtRecords(map_string_t& properties)
-{
 
-    //if (_txtRecords) avahi_string_list_free(_txtRecords);
-    AvahiStringList* updttxtRecords = nullptr;
-    // Set all txt records.
-    for (map_string_t::iterator it = properties.begin(); it != properties.end(); ++it) {
-        updttxtRecords = avahi_string_list_add(updttxtRecords, (it->first + "=" + it->second).c_str());
-        zsys_info("avahi_string_list_add(TXT %s)",(it->first + "=" + it->second).c_str());
+void AvahiWrapper::setTxtRecords(map_string_t &map)
+{
+    clearTxtRecords ();
+    for (auto it: map) {
+        setTxtRecord (it.first.c_str (), it.second.c_str ());
     }
-    int rv = 0;
-    if(_group){
-        rv = avahi_entry_group_update_service_txt_strlst(_group,
-                AVAHI_IF_UNSPEC,
-                AVAHI_PROTO_UNSPEC,
-                AvahiPublishFlags(0),
-                _serviceName,
-                _serviceDefinition[SERVICE_TYPE_KEY].c_str(),
-                nullptr,
-                updttxtRecords);
-        if(rv<0){
-            zsys_error( "avahi_entry_group_update_service_txt_strlst Failed %s",
-                    avahi_strerror(rv));;
-        }else{
-            if (_txtRecords) avahi_string_list_free(_txtRecords);
-            _txtRecords=updttxtRecords;
-            zsys_debug("avahi_entry_group_update_service_txt_strlst OK");
-        }
-    }
-    return rv;
 }
-*/
+
+void AvahiWrapper::setTxtRecords(zhash_t *map)
+{
+    if (!map) return;
+    clearTxtRecords ();
+    char *value = (char *) zhash_first (map);
+    while (value) {
+        const char *key = (char *) zhash_cursor (map);
+        setTxtRecord (key, value);
+        value = (char *) zhash_next (map);
+    }
+}
+
+
 void AvahiWrapper::setHostName(const std::string& name)
 {
     avahi_client_set_host_name(_client, name.c_str());
@@ -201,6 +195,30 @@ AvahiEntryGroup* AvahiWrapper::create_service(AvahiClient* client,char* serviceN
     }
     return group;
 }
+
+void AvahiWrapper::update()
+{
+    if (_group == NULL) {
+        zsys_warning ("Update called but service doesnt exist yet!");
+        return;
+    }
+
+    int rv = avahi_entry_group_update_service_txt_strlst(
+        _group,
+        AVAHI_IF_UNSPEC,
+        AVAHI_PROTO_UNSPEC,
+        AvahiPublishFlags(0),
+        _serviceName,
+        _serviceDefinition[SERVICE_TYPE_KEY].c_str(),
+        nullptr, //domain
+        _txtRecords);
+
+    if (rv < 0) {
+        zsys_error("Failed to update service: %s", avahi_strerror (rv));
+    }
+}
+
+
 void AvahiWrapper::onClientRunning(AvahiClient* client)
 {
     try {

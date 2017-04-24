@@ -343,17 +343,16 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
                     // -------------------------------------------------- IPC message
                     if (streq (cmd, "IPC") && self->service) {
                         // this suppose to be an update, service must be created already
-                        char *name  = zmsg_popstr (message);
                         char *type  = zmsg_popstr (message);
                         char *stype = zmsg_popstr (message);
                         char *port  = zmsg_popstr (message);
                         zframe_t *infosframe = zmsg_pop (message);
                         zhash_t *infos = zhash_unpack (infosframe);
                         if (name && type && stype && port && infos) {
-                            s_set_srv_name(self,name);
-                            s_set_srv_type(self,type);
-                            s_set_srv_stype(self,stype);
-                            s_set_srv_port(self,port);
+                            s_set_srv_name (self, cmd);
+                            s_set_srv_type (self, type);
+                            s_set_srv_stype (self, stype);
+                            s_set_srv_port (self, port);
                             self->service->setTxtRecords (infos);
                             self->service->update ();
                         } else {
@@ -361,7 +360,6 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
                         }
                         zhash_destroy (&infos);
                         zframe_destroy (&infosframe);
-                        zstr_free(&name);
                         zstr_free(&type);
                         zstr_free(&stype);
                         zstr_free(&port);

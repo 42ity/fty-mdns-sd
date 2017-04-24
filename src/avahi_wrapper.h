@@ -39,6 +39,8 @@
 #include <avahi-common/malloc.h>
 #include <avahi-common/error.h>
 
+#include "fty_mdns_sd_classes.h"
+
 #define SERVICE_NAME_KEY      "name"
 #define SERVICE_TYPE_KEY      "type"
 #define SERVICE_SUBTYPE_KEY   "subType"
@@ -78,8 +80,10 @@ public:
         const std::string& port,
         const std::string& uuid);
 
-    void setTxtRecords(char* key, char*value);
-    //int  publishTxtRecords(map_string_t& properties);
+    void clearTxtRecords();
+    void setTxtRecord(const char* key, const char*value);
+    void setTxtRecords(map_string_t &map);
+    void setTxtRecords(zhash_t *map);
 
     void setHostName(const std::string& name);
 
@@ -88,6 +92,8 @@ public:
     int start();
 
     void stop();
+
+    void update();
 
 protected:
 

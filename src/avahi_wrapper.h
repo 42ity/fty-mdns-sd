@@ -77,8 +77,7 @@ public:
         const std::string& service_name,
         const std::string& service_type,
         const std::string& service_stype,
-        const std::string& port,
-        const std::string& uuid);
+        const std::string& port);
 
     void clearTxtRecords();
     void setTxtRecord(const char* key, const char*value);

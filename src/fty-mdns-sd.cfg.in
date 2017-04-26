@@ -8,25 +8,4 @@ fty-info
 
 malamute
     endpoint = ipc://@/malamute                     #   Malamute endpoint
-    address = fty-mdns-sd                           #   Agent mdns-sd address
-
-#announcement section
-#first service is the default
-default
-    service
-        name  = IPC
-        type  = _https._tcp.
-        stype = _powerservice._sub._https._tcp.
-        port  = 443
-    properties                           # TXT properties
-        txtvers   = 1
-        #name      = INTELLIGENT POWER CONTROLLER
-        #location  = unknown
-        #path      = /api/v1
-        #model     = IPC3000
-        #type      = ipc
-        #uuid      = ffffffff-ffff-ffff-ffff-ffffffffffff
-        #vendor    = Eaton
-        #serial    = NA
-
-
+    address = fty-mdns-sd                           #   Agent mdns-sd address=

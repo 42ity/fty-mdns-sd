@@ -47,10 +47,9 @@ void AvahiWrapper::setServiceDefinition(
     const std::string& service_name,
     const std::string& service_type,
     const std::string& service_stype,
-    const std::string& port,
-    const std::string& uuid)
+    const std::string& port)
 {
-    _serviceName = avahi_strdup_printf("%s", getServiceName(service_name,uuid).c_str());
+    _serviceName = avahi_strdup( service_name.c_str());
     _serviceDefinition[SERVICE_TYPE_KEY]    = std::string(service_type);
     _serviceDefinition[SERVICE_SUBTYPE_KEY] = std::string(service_stype);
     _serviceDefinition[SERVICE_PORT_KEY]    = std::string(port);

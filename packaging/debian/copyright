@@ -2,7 +2,7 @@ Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: fty-mdns-sd
 
 Files: *
-Copyright: 2017- fty-mdns-sd Gerald Guillaume <geraldguillaume@eaton.com>
+Copyright: 2015- fty-mdns-sd Developers <eatonipcopensource@eaton.com>
 License: fty-mdns-sd_license
  Copyright (C) 2014 - 2017 Eaton                                        
                                                                         

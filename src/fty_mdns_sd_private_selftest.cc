@@ -37,6 +37,8 @@
 void
 fty_mdns_sd_private_selftest (bool verbose)
 {
+// Tests for stable private classes:
+    avahi_wrapper_test (verbose);
 }
 /*
 ################################################################################

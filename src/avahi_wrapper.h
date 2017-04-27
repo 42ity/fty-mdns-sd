@@ -48,6 +48,8 @@
 
 typedef std::map<std::string, std::string> map_string_t;
 
+void avahi_wrapper_test (bool verbose);
+
 class AvahiWrapper {
 protected:
     //friend class AvahiGroupWrapper;

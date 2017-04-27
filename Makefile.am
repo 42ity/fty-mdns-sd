@@ -51,6 +51,7 @@ EXTRA_DIST += \
 endif
 
 EXTRA_DIST += \
+    src/avahi_wrapper.h \
     README.md \
     src/fty_mdns_sd_classes.h
 

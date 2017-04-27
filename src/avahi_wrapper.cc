@@ -297,3 +297,7 @@ void AvahiWrapper::groupCallback(AvahiEntryGroup* group, AvahiEntryGroupState st
         zsys_error(  "groupCallback exception: %s",e.what() );
     }
 }
+
+void avahi_wrapper_test (bool verbose) {
+    printf ("Avahi wrapper test\n");
+}

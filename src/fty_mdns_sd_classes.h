@@ -35,11 +35,21 @@
 //  Extra headers
 
 //  Opaque class structures to allow forward references
+#ifndef AVAHI_WRAPPER_T_DEFINED
+typedef struct _avahi_wrapper_t avahi_wrapper_t;
+#define AVAHI_WRAPPER_T_DEFINED
+#endif
 
 //  Internal API
+#include "avahi_wrapper.h"
 
 //  *** To avoid double-definitions, only define if building without draft ***
 #ifndef FTY_MDNS_SD_BUILD_DRAFT_API
+
+//  *** Draft method, defined for internal use only ***
+//  Self test of this class.
+FTY_MDNS_SD_PRIVATE void
+    avahi_wrapper_test (bool verbose);
 
 //  Self test for private classes
 FTY_MDNS_SD_PRIVATE void

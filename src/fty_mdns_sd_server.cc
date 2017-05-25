@@ -205,12 +205,12 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
     //TODO : check UUID if you think it is important
     zstr_free(&zuuid_reply);
     zuuid_destroy(&uuid);
-    
+
     char *srv_name  = zmsg_popstr (resp);
     char *srv_type  = zmsg_popstr (resp);
     char *srv_stype = zmsg_popstr (resp);
     char *srv_port  = zmsg_popstr (resp);
-    
+
     s_set_srv_name(self,srv_name);
     s_set_srv_type(self,srv_type);
     s_set_srv_stype(self,srv_stype);
@@ -235,27 +235,28 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
 //  process pipe message
 //  return true means continue, false means TERM
 bool static
-s_handle_pipe(fty_mdns_sd_server_t* self,zmsg_t *message)
+s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
 {
-    if (!message)
-        return true;
+    if (! message_p || ! *message_p) return true;
+    zmsg_t *message = *message_p;
+
     char *command = zmsg_popstr (message);
     if (!command) {
-        zmsg_destroy (&message);
+        zmsg_destroy (message_p);
         zsys_warning ("Empty command.");
         return true;
     }
     if (streq(command, "$TERM")) {
         zsys_info ("Got $TERM");
-        zmsg_destroy (&message);
+        zmsg_destroy (message_p);
         zstr_free (&command);
         return false;
     }
-    else 
+    else
     if (streq (command, "VERBOSE")) {
         self->verbose = true;
     }
-    else 
+    else
     if (streq (command, "CONNECT")) {
         char *endpoint = zmsg_popstr (message);
         if (!endpoint)
@@ -267,7 +268,7 @@ s_handle_pipe(fty_mdns_sd_server_t* self,zmsg_t *message)
         zsys_debug("fty-mdns-sd-server: CONNECT %s/%s",endpoint,self->name);
         zstr_free (&endpoint);
     }
-    else 
+    else
     if (streq (command, "CONSUMER")) {
         char *stream = zmsg_popstr (message);
         char *pattern = zmsg_popstr (message);
@@ -284,7 +285,7 @@ s_handle_pipe(fty_mdns_sd_server_t* self,zmsg_t *message)
         zstr_free (&stream);
         zstr_free (&pattern);
     }
-    else 
+    else
     if (streq (command, "SET-DEFAULT-SERVICE")) {
          //set new ones
         char *name  = zmsg_popstr (message);
@@ -302,7 +303,7 @@ s_handle_pipe(fty_mdns_sd_server_t* self,zmsg_t *message)
         zstr_free(&stype);
         zstr_free(&port);
     }
-    else 
+    else
     if (streq (command, "SET-DEFAULT-TXT")) {
         char *key   = zmsg_popstr (message);
         char *value = zmsg_popstr (message);
@@ -312,7 +313,7 @@ s_handle_pipe(fty_mdns_sd_server_t* self,zmsg_t *message)
         zstr_free(&key);
         zstr_free(&value);
     }
-    else 
+    else
     if (streq (command, "DO-DEFAULT-ANNOUNCE")) {
         //free previous value
         zstr_free (&self->fty_info_command);
@@ -331,7 +332,7 @@ s_handle_pipe(fty_mdns_sd_server_t* self,zmsg_t *message)
         self->service->start();
     }
     else
-        zsys_warning ("%s:\tUnkown API command=%s, ignoring", 
+        zsys_warning ("%s:\tUnkown API command=%s, ignoring",
                 self->name, command);
     zstr_free (&command);
     zmsg_destroy (&message);
@@ -340,49 +341,58 @@ s_handle_pipe(fty_mdns_sd_server_t* self,zmsg_t *message)
 //  --------------------------------------------------------------------------
 //  process message from ANNOUNCE stream
 void static
-s_handle_stream(fty_mdns_sd_server_t* self,zmsg_t *message)
+s_handle_stream(fty_mdns_sd_server_t* self, zmsg_t **message_p)
 {
-    const char *subject=mlm_client_subject(self->client);
-    
-    // this suppose to be an update, service must be created already
-    char *srv_name = zmsg_popstr (message);
-    char *srv_type  = zmsg_popstr (message);
-    char *srv_stype = zmsg_popstr (message);
-    char *srv_port  = zmsg_popstr (message);
-    
-    zsys_debug("fty-mdns-sd-server: new ANNOUNCEMENT %s from %s",
-        subject,srv_name);
-    
-    zframe_t *infosframe = zmsg_pop (message);
-    zhash_t *infos = zhash_unpack (infosframe);
-    if (srv_name && srv_type && srv_stype && srv_port && infos) {
-        s_set_srv_name (self, srv_name);
-        s_set_srv_type (self, srv_type);
-        s_set_srv_stype (self, srv_stype);
-        s_set_srv_port (self, srv_port);
-        self->service->setTxtRecords (infos);
-        self->service->update ();
-    } else {
-        zsys_error ("Malformed IPC message received");
+    zmsg_t *message = *message_p;
+    char *cmd = zmsg_popstr (message);
+
+    if (cmd) {
+        if (streq (cmd, "INFO")) {
+            // this suppose to be an update, service must be created already
+            char *srv_name = zmsg_popstr (message);
+            char *srv_type  = zmsg_popstr (message);
+            char *srv_stype = zmsg_popstr (message);
+            char *srv_port  = zmsg_popstr (message);
+
+            zsys_debug("fty-mdns-sd-server: new ANNOUNCEMENT from %s", srv_name);
+
+            zframe_t *infosframe = zmsg_pop (message);
+            zhash_t *infos = zhash_unpack (infosframe);
+            if (srv_name && srv_type && srv_stype && srv_port && infos) {
+                s_set_srv_name (self, srv_name);
+                s_set_srv_type (self, srv_type);
+                s_set_srv_stype (self, srv_stype);
+                s_set_srv_port (self, srv_port);
+                self->service->setTxtRecords (infos);
+                self->service->update ();
+            } else {
+                zsys_error ("Malformed IPC message received");
+            }
+            zhash_destroy (&infos);
+            zframe_destroy (&infosframe);
+            zstr_free(&srv_type);
+            zstr_free(&srv_stype);
+            zstr_free(&srv_port);
+            zstr_free (&srv_name);
+        }
+        else {
+            zsys_error ("Unknown command %s", cmd);
+        }
+        zstr_free (&cmd);
     }
-    zhash_destroy (&infos);
-    zframe_destroy (&infosframe);
-    zstr_free(&srv_type);
-    zstr_free(&srv_stype);
-    zstr_free(&srv_port);
-    zstr_free (&srv_name);
-    zmsg_destroy (&message);
+    zmsg_destroy (message_p);
 }
 
 //  --------------------------------------------------------------------------
-//  process message from MAILBOX 
+//  process message from MAILBOX
+
 void static
-s_handle_mailbox(fty_mdns_sd_server_t* self,zmsg_t *message)
+s_handle_mailbox(fty_mdns_sd_server_t* self,zmsg_t **message_p)
 {
     //nothing to do for now
-    zmsg_destroy (&message);
-    
+    zmsg_destroy (message_p);
 }
+
 //  --------------------------------------------------------------------------
 //  Create a new fty_mdns_sd_server
 
@@ -405,20 +415,21 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
         void *which = zpoller_wait (poller, -1);
 
         if (which == pipe) {
-            if(!s_handle_pipe(self,zmsg_recv (pipe)))
-                break;//TERM
-            else continue;
-        }// end of command pipe processing
-        else 
-        if (which == mlm_client_msgpipe (self->client)) {
+            zmsg_t *message = zmsg_recv (pipe);
+            if(! s_handle_pipe (self, &message)) {
+                break; // TERM
+            }
+            // end of command pipe processing
+        }
+        else if (which == mlm_client_msgpipe (self->client)) {
             zmsg_t *message = mlm_client_recv (self->client);
             const char *command = mlm_client_command (self->client);
             if (streq (command, "STREAM DELIVER")) {
-                s_handle_stream (self, message);
+                s_handle_stream (self, &message);
             }
             else
             if (streq (command, "MAILBOX DELIVER")) {
-                s_handle_mailbox (self, message);
+                s_handle_mailbox (self, &message);
             }
         }
     }

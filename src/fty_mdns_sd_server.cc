@@ -206,6 +206,8 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
     zstr_free(&zuuid_reply);
     zuuid_destroy(&uuid);
 
+    char *cmd = zmsg_popstr (resp);
+    assert(streq (cmd, "INFO"));
     char *srv_name  = zmsg_popstr (resp);
     char *srv_type  = zmsg_popstr (resp);
     char *srv_stype = zmsg_popstr (resp);
@@ -221,6 +223,7 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
     s_set_txt_records(self,infos);
 
     zhash_destroy(&infos);
+    zstr_free (&cmd);
     zstr_free (&srv_name);
     zstr_free (&srv_type);
     zstr_free (&srv_stype);

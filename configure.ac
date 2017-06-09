@@ -55,6 +55,7 @@ AC_PROG_AWK
 PKG_PROG_PKG_CONFIG
 
 # Code coverage
+AC_MSG_CHECKING([whether to enable GCov])
 AC_ARG_WITH(gcov, [AS_HELP_STRING([--with-gcov=yes/no],
                   [With GCC Code Coverage reporting])],
                   [FTY_MDNS_SD_GCOV="$withval"])
@@ -66,8 +67,27 @@ if test "x${FTY_MDNS_SD_GCOV}" == "xyes"; then
         CFLAGS="${CFLAGS} ${FTY_MDNS_SD_ORIG_CFLAGS}"
     fi
     AM_CONDITIONAL(WITH_GCOV, true)
+    AC_MSG_RESULT([yes])
 else
     AM_CONDITIONAL(WITH_GCOV, false)
+    AC_MSG_RESULT([no])
+fi
+
+# Memory mis-use detection
+AC_MSG_CHECKING([whether to enable ASan])
+AC_ARG_ENABLE(address-sanitizer, [AS_HELP_STRING([--enable-address-sanitizer=yes/no],
+                  [Build with GCC Address Sanitizer instrumentation])],
+                  [FTY_MDNS_SD_ASAN="$enableval"])
+
+if test "x${FTY_MDNS_SD_ASAN}" == "xyes"; then
+    CFLAGS="${CFLAGS} -fsanitize=address"
+    CXXFLAGS="${CXXFLAGS} -fsanitize=address"
+
+    AM_CONDITIONAL(ENABLE_ASAN, true)
+    AC_MSG_RESULT([yes])
+else
+    AM_CONDITIONAL(ENABLE_ASAN, false)
+    AC_MSG_RESULT([no])
 fi
 
 # Set pkgconfigdir
@@ -234,7 +254,7 @@ AS_IF([test x"${search_libczmq}" = xyes], [
                 )
         fi
 
-        AC_CHECK_LIB([czmq], [zmsg_test],
+        AC_CHECK_LIB([czmq], [zhashx_test],
             [
                 was_czmq_check_lib_detected=yes
                 PKGCFG_LIBS_PRIVATE="$PKGCFG_LIBS_PRIVATE -lczmq"
@@ -296,14 +316,14 @@ AS_IF([test x"${search_libmlm}" = xyes], [
 
     found_pkgconfig=""
     found_linkname=""
-    PKG_CHECK_MODULES([malamute], [libmlm >= 0.0.0],
+    PKG_CHECK_MODULES([malamute], [libmlm >= 1.0.0],
     [
         PKGCFG_LIBS_PRIVATE="$PKGCFG_LIBS_PRIVATE $malamute_LIBS"
         was_malamute_check_lib_detected=pkgcfg
         found_pkgconfig="libmlm"
     ],
     [
-        AC_MSG_NOTICE([Package libmlm not found; falling back to defined compilability tests])
+        AC_MSG_NOTICE([Package libmlm not found with needed constraints; falling back to defined compilability tests])
 
         malamute_synthetic_cflags=""
         malamute_synthetic_libs="-lmlm"
@@ -348,7 +368,7 @@ dnl END of PKG_CHECK_MODULES and/or direct tests for libmlm
             ],
         [xno], [
                 AC_SUBST([pkgconfig_name_libmlm],[libmlm])
-            AC_MSG_ERROR([Cannot find pkg-config metadata for libmlm 0.0.0 or higher])
+            AC_MSG_ERROR([Cannot find pkg-config metadata for libmlm 1.0.0 or higher])
     ])
 ])
 dnl END of enabled attempts to search for libmlm

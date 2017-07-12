@@ -201,11 +201,10 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
         return -3;
     }
 
-    char *zuuid_or_error = zmsg_popstr (resp);
-    //assert no unexpected ERROR reported 
-    assert(strneq (zuuid_or_error, "ERROR"));
+    char *zuuid_reply = zmsg_popstr (resp);
+    assert(strneq (zuuid_reply, "ERROR"));
     //TODO : check UUID if you think it is important
-    zstr_free(&zuuid_or_error);
+    zstr_free(&zuuid_reply);
     zuuid_destroy(&uuid);
 
     char *cmd = zmsg_popstr (resp);
@@ -326,7 +325,8 @@ s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         self->fty_info_command = zmsg_popstr (message);
         zsys_debug("fty-mdns-sd-server: DO-DEFAULT-ANNOUNCE %s",
                 self->fty_info_command);
-        s_poll_fty_info(self);
+        int rv=s_poll_fty_info(self);
+        assert(rv==0);
         self->service->setServiceDefinition(
             self->srv_name,
             self->srv_type,

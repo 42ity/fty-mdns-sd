@@ -129,6 +129,7 @@ main (int argc, char *argv [])
     zstr_sendx (server, "CONSUMER", "ANNOUNCE", ".*", NULL);
 
     ////do first announcement
+    zclock_sleep (5000);
     zstr_sendx (server, "DO-DEFAULT-ANNOUNCE", fty_info_command,NULL);
 
     while (!zsys_interrupted) {

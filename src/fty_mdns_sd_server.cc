@@ -201,10 +201,10 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
         return -3;
     }
 
-    char *zuuid_reply = zmsg_popstr (resp);
-    assert(strneq (zuuid_reply, "ERROR"));
+    char *zuuid_or_error = zmsg_popstr (resp);
+    assert(strneq (zuuid_or_error, "ERROR"));
     //TODO : check UUID if you think it is important
-    zstr_free(&zuuid_reply);
+    zstr_free(&zuuid_or_error);
     zuuid_destroy(&uuid);
 
     char *cmd = zmsg_popstr (resp);

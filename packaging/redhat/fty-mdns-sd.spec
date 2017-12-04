@@ -1,21 +1,21 @@
 #
 #    fty-mdns-sd - This service manages network anouncement (mDNS) and discovery (DNS-SD)
 #
-#    Copyright (C) 2014 - 2017 Eaton                                        
-#                                                                           
-#    This program is free software; you can redistribute it and/or modify   
-#    it under the terms of the GNU General Public License as published by   
-#    the Free Software Foundation; either version 2 of the License, or      
-#    (at your option) any later version.                                    
-#                                                                           
-#    This program is distributed in the hope that it will be useful,        
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of         
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the          
-#    GNU General Public License for more details.                           
-#                                                                           
+#    Copyright (C) 2014 - 2017 Eaton
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
 #    You should have received a copy of the GNU General Public License along
 #    with this program; if not, write to the Free Software Foundation, Inc.,
-#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.            
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
 # To build with draft APIs, use "--with drafts" in rpmbuild for local builds or add
@@ -28,6 +28,7 @@
 %else
 %define DRAFTS no
 %endif
+%define SYSTEMD_UNIT_DIR %(pkg-config --variable=systemdsystemunitdir systemd)
 Name:           fty-mdns-sd
 Version:        1.0.0
 Release:        1
@@ -50,6 +51,7 @@ BuildRequires:  systemd
 %{?systemd_requires}
 BuildRequires:  xmlto
 BuildRequires:  gcc-c++
+BuildRequires:  libsodium-devel
 BuildRequires:  zeromq-devel
 BuildRequires:  czmq-devel
 BuildRequires:  malamute-devel
@@ -78,6 +80,7 @@ This package contains shared library for fty-mdns-sd: this service manages netwo
 Summary:        this service manages network anouncement (mdns) and discovery (dns-sd)
 Group:          System/Libraries
 Requires:       libfty_mdns_sd0 = %{version}
+Requires:       libsodium-devel
 Requires:       zeromq-devel
 Requires:       czmq-devel
 Requires:       malamute-devel
@@ -97,6 +100,7 @@ This package contains development files for fty-mdns-sd: this service manages ne
 %{_mandir}/man7/*
 
 %prep
+
 %setup -q
 
 %build
@@ -117,7 +121,7 @@ find %{buildroot} -name '*.la' | xargs rm -f
 %{_bindir}/fty-mdns-sd
 %{_mandir}/man1/fty-mdns-sd*
 %config(noreplace) %{_sysconfdir}/fty-mdns-sd/fty-mdns-sd.cfg
-/usr/lib/systemd/system/fty-mdns-sd.service
+%{SYSTEMD_UNIT_DIR}/fty-mdns-sd.service
 %dir %{_sysconfdir}/fty-mdns-sd
 %if 0%{?suse_version} > 1315
 %post

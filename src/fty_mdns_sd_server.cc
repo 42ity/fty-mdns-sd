@@ -208,7 +208,10 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
     zuuid_destroy(&uuid);
 
     char *cmd = zmsg_popstr (resp);
-    assert(streq (cmd, "INFO"));
+    if(strneq (cmd, "INFO")) {
+        zsys_error ("%s: not received INFO command (%s)", __func__, cmd);
+        return -4;
+    }
     char *srv_name  = zmsg_popstr (resp);
     char *srv_type  = zmsg_popstr (resp);
     char *srv_stype = zmsg_popstr (resp);
@@ -325,7 +328,18 @@ s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         self->fty_info_command = zmsg_popstr (message);
         zsys_debug("fty-mdns-sd-server: DO-DEFAULT-ANNOUNCE %s",
                 self->fty_info_command);
-        int rv=s_poll_fty_info(self);
+        int rv = -1;
+        int tries = 3;
+        while (tries-- >= 0) {
+            rv=s_poll_fty_info(self);
+            if (rv == 0)
+                break;
+            // Wait 5 seconds before retrying
+            if (tries == 0)
+                zclock_sleep (5000);
+        }
+        // sanity check, this should trigger a service abort then restart
+        // in the worst case, if we did not succeeded after 3 tries
         assert(rv==0);
         self->service->setServiceDefinition(
             self->srv_name,

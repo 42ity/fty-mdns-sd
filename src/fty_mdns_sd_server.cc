@@ -335,7 +335,8 @@ s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
             if (rv == 0)
                 break;
             // Wait 5 seconds before retrying
-            zclock_sleep (5000);
+            if (tries == 0)
+                zclock_sleep (5000);
         }
         // sanity check, this should trigger a service abort then restart
         // in the worst case, if we did not succeeded after 3 tries

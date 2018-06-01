@@ -29,10 +29,10 @@ src/fty_mdns_sd_selftest
 *.app
 core
 
- # Distcheck workspace and archives
-fty-mdns-sd-1.0.0/
-fty-mdns-sd-1.0.0.tar.gz
-fty-mdns-sd-1.0.0.zip
+# Distcheck workspace and archives
+fty-mdns-sd-*/
+fty-mdns-sd-*.tar.gz
+fty-mdns-sd-*.zip
 
 # Man pages
 doc/*.1
@@ -73,6 +73,7 @@ install_manifest.txt
 Testing/
 
 # Repositories downloaded by CI integration scripts
+libsodium/
 libzmq/
 czmq/
 malamute/

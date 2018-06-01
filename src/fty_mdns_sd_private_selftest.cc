@@ -35,10 +35,11 @@
 //
 
 void
-fty_mdns_sd_private_selftest (bool verbose)
+fty_mdns_sd_private_selftest (bool verbose, const char *subtest)
 {
 // Tests for stable private classes:
-    avahi_wrapper_test (verbose);
+    if (streq (subtest, "$ALL") || streq (subtest, "avahi_wrapper_test"))
+        avahi_wrapper_test (verbose);
 }
 /*
 ################################################################################

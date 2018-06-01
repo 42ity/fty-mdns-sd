@@ -64,11 +64,12 @@
 #   define FTY_MDNS_SD_EXPORT
 #   define FTY_MDNS_SD_PRIVATE
 #else
-#   define FTY_MDNS_SD_EXPORT
 #   if (defined __GNUC__ && __GNUC__ >= 4) || defined __INTEL_COMPILER
 #       define FTY_MDNS_SD_PRIVATE __attribute__ ((visibility ("hidden")))
+#       define FTY_MDNS_SD_EXPORT __attribute__ ((visibility ("default")))
 #   else
 #       define FTY_MDNS_SD_PRIVATE
+#       define FTY_MDNS_SD_EXPORT
 #   endif
 #endif
 
@@ -91,9 +92,18 @@ typedef struct _fty_mdns_sd_server_t fty_mdns_sd_server_t;
 #endif // FTY_MDNS_SD_BUILD_DRAFT_API
 
 #ifdef FTY_MDNS_SD_BUILD_DRAFT_API
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //  Self test for private classes
 FTY_MDNS_SD_EXPORT void
-    fty_mdns_sd_private_selftest (bool verbose);
+    fty_mdns_sd_private_selftest (bool verbose, const char *subtest);
+
+#ifdef __cplusplus
+}
+#endif
 #endif // FTY_MDNS_SD_BUILD_DRAFT_API
 
 #endif

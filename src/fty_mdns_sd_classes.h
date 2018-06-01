@@ -54,7 +54,7 @@ FTY_MDNS_SD_PRIVATE void
 
 //  Self test for private classes
 FTY_MDNS_SD_PRIVATE void
-    fty_mdns_sd_private_selftest (bool verbose);
+    fty_mdns_sd_private_selftest (bool verbose, const char *subtest);
 
 #endif // FTY_MDNS_SD_BUILD_DRAFT_API
 

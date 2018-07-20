@@ -1,7 +1,7 @@
 #
 #    fty-mdns-sd - This service manages network anouncement (mDNS) and discovery (DNS-SD)
-#
-#    Copyright (C) 2014 - 2017 Eaton
+#    Copyright (C) 2014 - 2018 Eaton
+
 #
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -51,6 +51,7 @@ BuildRequires:  systemd
 %{?systemd_requires}
 BuildRequires:  xmlto
 BuildRequires:  gcc-c++
+BuildRequires:  libsodium-devel
 BuildRequires:  zeromq-devel
 BuildRequires:  czmq-devel
 BuildRequires:  malamute-devel
@@ -82,6 +83,7 @@ This package contains shared library for fty-mdns-sd: this service manages netwo
 Summary:        this service manages network anouncement (mdns) and discovery (dns-sd)
 Group:          System/Libraries
 Requires:       libfty_mdns_sd0 = %{version}
+Requires:       libsodium-devel
 Requires:       zeromq-devel
 Requires:       czmq-devel
 Requires:       malamute-devel

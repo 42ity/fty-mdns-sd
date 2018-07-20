@@ -12,6 +12,7 @@ AM_CXXFLAGS = \
     -std=c++11
 
 AM_CPPFLAGS = \
+    ${libsodium_CFLAGS} \
     ${libzmq_CFLAGS} \
     ${czmq_CFLAGS} \
     ${malamute_CFLAGS} \
@@ -44,6 +45,7 @@ DISTCLEANFILES =
 
 if ENABLE_DIST_CMAKEFILES
 EXTRA_DIST += \
+    Findlibsodium.cmake \
     Findlibzmq.cmake \
     Findczmq.cmake \
     Findmalamute.cmake \
@@ -52,6 +54,7 @@ EXTRA_DIST += \
     Findlog4cplus.cmake \
     Findcxxtools.cmake \
     Findfty_common_logging.cmake \
+
     builds/cmake/Modules/ClangFormat.cmake \
     builds/cmake/clang-format-check.sh.in \
     builds/cmake/Config.cmake.in \

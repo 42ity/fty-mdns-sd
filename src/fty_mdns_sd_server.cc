@@ -35,7 +35,6 @@
 
 
 struct _fty_mdns_sd_server_t {
-    bool verbose;            // is actor verbose or not
     char *name;              // actor name
     mlm_client_t *client;    // malamute client
     char *fty_info_command;
@@ -130,7 +129,6 @@ fty_mdns_sd_server_new (const char* name)
     fty_mdns_sd_server_t *self = (fty_mdns_sd_server_t *) zmalloc (sizeof (fty_mdns_sd_server_t));
     assert (self);
     //  Initialize class properties here
-    self->verbose = false;
     if (!name) {
         log_error ("Address for fty_mdns_sd actor is NULL");
         free (self);
@@ -255,10 +253,6 @@ s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         zmsg_destroy (message_p);
         zstr_free (&command);
         return false;
-    }
-    else
-    if (streq (command, "VERBOSE")) {
-        self->verbose = true;
     }
     else
     if (streq (command, "CONNECT")) {

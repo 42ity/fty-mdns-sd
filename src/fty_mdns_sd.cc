@@ -28,10 +28,13 @@
 
 #include "fty_mdns_sd_classes.h"
 #include "avahi_wrapper.h"
+
+#define default_log_config "/etc/fty/ftylog.cfg"
+
 void
 usage(){
     puts ("fty-mdns-sd [options] ...");
-    puts ("  -v|--verbose        verbose test output");
+    puts ("  -v|--verbose        verbose output");
     puts ("  -h|--help           this information");
     puts ("  -c|--config         path to config file\n");
     puts ("  -e|--endpoint       malamute endpoint [ipc://@/malamute]");
@@ -62,11 +65,12 @@ main (int argc, char *argv [])
 {
     char *config_file = NULL;
     zconfig_t *config = NULL;
+    char *log_config = NULL;
 
     bool verbose = false;
     int argn;
 
-    zsys_info ("fty_mdns_sd - started");
+    log_info ("fty_mdns_sd - started");
 
     // check env verbose
     char* bios_log_level = getenv ("BIOS_LOG_LEVEL");
@@ -76,8 +80,9 @@ main (int argc, char *argv [])
 
     char* actor_name = (char*)"fty-mdns-sd";
     char* endpoint = (char*)"ipc://@/malamute";
-
     char*fty_info_command = (char*)"INFO";
+
+    ManageFtyLog::setInstanceFtylog(actor_name);
 
     //parse command line
     for (argn = 1; argn < argc; argn++) {
@@ -108,10 +113,10 @@ main (int argc, char *argv [])
 
     //parse config file
     if(config_file){
-        zsys_debug ("fty_mdns_sd:LOAD: %s", config_file);
+        log_debug ("fty_mdns_sd:LOAD: %s", config_file);
         config = zconfig_load (config_file);
         if (!config) {
-            zsys_error ("Failed to load config file %s: %m", config_file);
+            log_error ("Failed to load config file %s: %m", config_file);
             exit (EXIT_FAILURE);
         }
         // VERBOSE
@@ -121,7 +126,16 @@ main (int argc, char *argv [])
         endpoint = s_get (config, "malamute/endpoint", endpoint);
         actor_name = s_get (config, "malamute/address", actor_name);
         fty_info_command = s_get (config, "fty-info/command", fty_info_command);
+
+        log_config = zconfig_get (config, "log/config", default_log_config);
     }
+    else {
+        log_config = (char *)default_log_config;
+    }
+
+    ManageFtyLog::getInstanceFtylog()->setConfigFile(std::string (log_config));
+    if (verbose)
+        ManageFtyLog::getInstanceFtylog()->setVeboseMode();
 
     zactor_t *server = zactor_new (fty_mdns_sd_server, (void*)actor_name);
     assert (server);
@@ -138,8 +152,7 @@ main (int argc, char *argv [])
     }
     zactor_destroy (&server);
     zconfig_destroy (&config);
-    if (verbose)
-        zsys_info ("fty_mdns_sd - exited");
+    log_info ("fty_mdns_sd - exited");
 
     return EXIT_SUCCESS;
 }

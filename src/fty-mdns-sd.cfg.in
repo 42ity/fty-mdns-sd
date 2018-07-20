@@ -9,3 +9,5 @@ fty-info
 malamute
     endpoint = ipc://@/malamute                     #   Malamute endpoint
     address = fty-mdns-sd                           #   Agent mdns-sd address=
+log
+   config = /etc/fty/ftylog;

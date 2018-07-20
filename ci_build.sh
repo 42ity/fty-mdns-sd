@@ -26,7 +26,7 @@ case "$CI_TRACE" in
 esac
 
 case "$BUILD_TYPE" in
-default|default-Werror|default-with-docs|valgrind)
+default|default-Werror|default-with-docs|valgrind|clang-format-check)
     LANG=C
     LC_ALL=C
     export LANG LC_ALL
@@ -37,20 +37,22 @@ default|default-Werror|default-with-docs|valgrind)
     mkdir -p tmp
     BUILD_PREFIX=$PWD/tmp
 
-    PATH="`echo "$PATH" | sed -e 's,^/usr/lib/ccache/?:,,' -e 's,:/usr/lib/ccache/?:,,' -e 's,:/usr/lib/ccache/?$,,' -e 's,^/usr/lib/ccache/?$,,'2`"
+    PATH="`echo "$PATH" | sed -e 's,^/usr/lib/ccache/?:,,' -e 's,:/usr/lib/ccache/?:,,' -e 's,:/usr/lib/ccache/?$,,' -e 's,^/usr/lib/ccache/?$,,'`"
     CCACHE_PATH="$PATH"
     CCACHE_DIR="${HOME}/.ccache"
+    # Use tools from prerequisites we might have built
+    PATH="${BUILD_PREFIX}/sbin:${BUILD_PREFIX}/bin:${PATH}"
     export CCACHE_PATH CCACHE_DIR PATH
     HAVE_CCACHE=no
     if which ccache && ls -la /usr/lib/ccache ; then
         HAVE_CCACHE=yes
     fi
+    mkdir -p "${CCACHE_DIR}" || HAVE_CCACHE=no
 
     if [ "$HAVE_CCACHE" = yes ] && [ -d "$CCACHE_DIR" ]; then
         echo "CCache stats before build:"
         ccache -s || true
     fi
-    mkdir -p "${HOME}/.ccache"
 
     CONFIG_OPTS=()
     COMMON_CFLAGS=""
@@ -277,7 +279,7 @@ default|default-Werror|default-with-docs|valgrind)
         echo ""
         echo "WARNING: Can not build prerequisite 'avahi-client'" >&2
         echo "because neither tarball nor repository sources are known for it," >&2
-        echo "and it was not isntalled as a package; this may cause the test to fail!" >&2
+        echo "and it was not installed as a package; this may cause the test to fail!" >&2
     fi
 
     # Start of recipe for dependency: fty-proto
@@ -289,6 +291,102 @@ default|default-Werror|default-with-docs|valgrind)
         echo "`date`: INFO: Building prerequisite 'fty-proto' from Git repository..." >&2
         $CI_TIME git clone --quiet --depth 1 https://github.com/42ity/fty-proto fty-proto
         cd fty-proto
+        CCACHE_BASEDIR=${PWD}
+        export CCACHE_BASEDIR
+        git --no-pager log --oneline -n1
+        if [ -e autogen.sh ]; then
+            $CI_TIME ./autogen.sh 2> /dev/null
+        fi
+        if [ -e buildconf ]; then
+            $CI_TIME ./buildconf 2> /dev/null
+        fi
+        if [ ! -e autogen.sh ] && [ ! -e buildconf ] && [ ! -e ./configure ] && [ -s ./configure.ac ]; then
+            $CI_TIME libtoolize --copy --force && \
+            $CI_TIME aclocal -I . && \
+            $CI_TIME autoheader && \
+            $CI_TIME automake --add-missing --copy && \
+            $CI_TIME autoconf || \
+            $CI_TIME autoreconf -fiv
+        fi
+        $CI_TIME ./configure "${CONFIG_OPTS[@]}"
+        $CI_TIME make -j4
+        $CI_TIME make install
+        cd "${BASE_PWD}"
+    fi
+
+    # Start of recipe for dependency: log4cplus
+    if ! (command -v dpkg-query >/dev/null 2>&1 && dpkg-query --list log4cplus-dev >/dev/null 2>&1) || \
+           (command -v brew >/dev/null 2>&1 && brew ls --versions log4cplus >/dev/null 2>&1) \
+    ; then
+        echo ""
+        BASE_PWD=${PWD}
+        echo "`date`: INFO: Building prerequisite 'log4cplus' from Git repository..." >&2
+        $CI_TIME git clone --quiet --depth 1 -b 1.1.2-FTY-master https://github.com/42ity/log4cplus.git log4cplus
+        cd log4cplus
+        CCACHE_BASEDIR=${PWD}
+        export CCACHE_BASEDIR
+        git --no-pager log --oneline -n1
+        if [ -e autogen.sh ]; then
+            $CI_TIME ./autogen.sh 2> /dev/null
+        fi
+        if [ -e buildconf ]; then
+            $CI_TIME ./buildconf 2> /dev/null
+        fi
+        if [ ! -e autogen.sh ] && [ ! -e buildconf ] && [ ! -e ./configure ] && [ -s ./configure.ac ]; then
+            $CI_TIME libtoolize --copy --force && \
+            $CI_TIME aclocal -I . && \
+            $CI_TIME autoheader && \
+            $CI_TIME automake --add-missing --copy && \
+            $CI_TIME autoconf || \
+            $CI_TIME autoreconf -fiv
+        fi
+        $CI_TIME ./configure "${CONFIG_OPTS[@]}"
+        $CI_TIME make -j4
+        $CI_TIME make install
+        cd "${BASE_PWD}"
+    fi
+
+    # Start of recipe for dependency: cxxtools
+    if ! (command -v dpkg-query >/dev/null 2>&1 && dpkg-query --list cxxtools-dev >/dev/null 2>&1) || \
+           (command -v brew >/dev/null 2>&1 && brew ls --versions cxxtools >/dev/null 2>&1) \
+    ; then
+        echo ""
+        BASE_PWD=${PWD}
+        echo "`date`: INFO: Building prerequisite 'cxxtools' from Git repository..." >&2
+        $CI_TIME git clone --quiet --depth 1 -b 2.2-FTY-master https://github.com/42ity/cxxtools.git cxxtools
+        cd cxxtools
+        CCACHE_BASEDIR=${PWD}
+        export CCACHE_BASEDIR
+        git --no-pager log --oneline -n1
+        if [ -e autogen.sh ]; then
+            $CI_TIME ./autogen.sh 2> /dev/null
+        fi
+        if [ -e buildconf ]; then
+            $CI_TIME ./buildconf 2> /dev/null
+        fi
+        if [ ! -e autogen.sh ] && [ ! -e buildconf ] && [ ! -e ./configure ] && [ -s ./configure.ac ]; then
+            $CI_TIME libtoolize --copy --force && \
+            $CI_TIME aclocal -I . && \
+            $CI_TIME autoheader && \
+            $CI_TIME automake --add-missing --copy && \
+            $CI_TIME autoconf || \
+            $CI_TIME autoreconf -fiv
+        fi
+        $CI_TIME ./configure "${CONFIG_OPTS[@]}"
+        $CI_TIME make -j4
+        $CI_TIME make install
+        cd "${BASE_PWD}"
+    fi
+
+    # Start of recipe for dependency: fty-common-logging
+    if ! (command -v dpkg-query >/dev/null 2>&1 && dpkg-query --list libfty_common_logging-dev >/dev/null 2>&1) || \
+           (command -v brew >/dev/null 2>&1 && brew ls --versions fty-common-logging >/dev/null 2>&1) \
+    ; then
+        echo ""
+        BASE_PWD=${PWD}
+        echo "`date`: INFO: Building prerequisite 'fty-common-logging' from Git repository..." >&2
+        $CI_TIME git clone --quiet --depth 1 -b master https://github.com/42ity/fty-common-logging.git fty-common-logging
+        cd fty-common-logging
         CCACHE_BASEDIR=${PWD}
         export CCACHE_BASEDIR
         git --no-pager log --oneline -n1
@@ -329,23 +427,31 @@ default|default-Werror|default-with-docs|valgrind)
     CONFIG_OPTS+=("${CONFIG_OPT_WERROR}")
     $CI_TIME ./autogen.sh 2> /dev/null
     $CI_TIME ./configure --enable-drafts=yes "${CONFIG_OPTS[@]}"
-    if [ "$BUILD_TYPE" == "valgrind" ] ; then
-        # Build and check this project
-        $CI_TIME make VERBOSE=1 memcheck
-        exit $?
-    fi
+    case "$BUILD_TYPE" in
+        valgrind)
+            # Build and check this project
+            $CI_TIME make VERBOSE=1 memcheck && exit
+            echo "Re-running failed ($?) memcheck with greater verbosity" >&2
+            $CI_TIME make VERBOSE=1 memcheck-verbose
+            exit $?
+            ;;
+        clang-format-check)
+            $CI_TIME make VERBOSE=1 clang-format-check-CI
+            exit $?
+            ;;
+    esac
     $CI_TIME make VERBOSE=1 all
 
-    echo "=== Are GitIgnores good after 'make all' with drafts? (should have no output below)"
-    git status -s || true
+    echo "=== Are GitIgnores good after 'make all' with drafts?"
+    make check-gitignore
     echo "==="
 
     (
         export DISTCHECK_CONFIGURE_FLAGS="--enable-drafts=yes ${CONFIG_OPTS[@]}"
         $CI_TIME make VERBOSE=1 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS" distcheck
 
-        echo "=== Are GitIgnores good after 'make distcheck' with drafts? (should have no output below)"
-        git status -s || true
+        echo "=== Are GitIgnores good after 'make distcheck' with drafts?"
+        make check-gitignore
         echo "==="
     )
 
@@ -358,17 +464,17 @@ default|default-Werror|default-with-docs|valgrind)
     git reset --hard HEAD
     (
         $CI_TIME ./autogen.sh 2> /dev/null
-        $CI_TIME ./configure --enable-drafts=no "${CONFIG_OPTS[@]}" --with-docs=yes
+        $CI_TIME ./configure --enable-drafts=no "${CONFIG_OPTS[@]}"
         $CI_TIME make VERBOSE=1 all || exit $?
         (
-            export DISTCHECK_CONFIGURE_FLAGS="--enable-drafts=no ${CONFIG_OPTS[@]} --with-docs=yes" && \
+            export DISTCHECK_CONFIGURE_FLAGS="--enable-drafts=no ${CONFIG_OPTS[@]}" && \
             $CI_TIME make VERBOSE=1 DISTCHECK_CONFIGURE_FLAGS="$DISTCHECK_CONFIGURE_FLAGS" distcheck || exit $?
         )
     ) || exit 1
     [ -z "$CI_TIME" ] || echo "`date`: Builds completed without fatal errors!"
 
-    echo "=== Are GitIgnores good after 'make distcheck' without drafts? (should have no output below)"
-    git status -s || true
+    echo "=== Are GitIgnores good after 'make distcheck' without drafts?"
+    make check-gitignore
     echo "==="
 
     if [ "$HAVE_CCACHE" = yes ]; then

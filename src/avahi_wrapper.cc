@@ -66,7 +66,7 @@ void AvahiWrapper::setTxtRecord(const char* key, const char*value)
     std::string _key = std::string(key);
     std::string _value = std::string(value);
     _txtRecords = avahi_string_list_add(_txtRecords, (_key + "=" + _value).c_str());
-    zsys_info("avahi_string_list_add(TXT %s)",(_key + "=" + _value).c_str());
+    log_info("avahi_string_list_add(TXT %s)",(_key + "=" + _value).c_str());
 
 }
 
@@ -101,7 +101,7 @@ int AvahiWrapper::start()
     int error = 0;
     /* Allocate main loop object */
     if (!(_simplePoll = avahi_simple_poll_new())) {
-        zsys_error( "Failed to create simple poll object.");
+        log_error( "Failed to create simple poll object.");
     }
     _client = avahi_client_new(avahi_simple_poll_get(_simplePoll), AvahiClientFlags(0), AvahiWrapper::clientCallback, this, &error);
     return error;
@@ -124,7 +124,7 @@ void AvahiWrapper::stop()
 
 void AvahiWrapper::printError(const std::string& msg, const char* errorNo)
 {
-    zsys_error("avahi error %s %s", msg.c_str(), errorNo);
+    log_error("avahi error %s %s", msg.c_str(), errorNo);
     avahi_simple_poll_quit(_simplePoll);
 }
 
@@ -136,13 +136,13 @@ AvahiEntryGroup* AvahiWrapper::create_service(AvahiClient* client,char* serviceN
     int rv;
     group = avahi_entry_group_new(client, AvahiWrapper::groupCallback, this);
     if(!group){
-        zsys_error("avahi_entry_group_new() failed", avahi_strerror(avahi_client_errno(client)));
+        log_error("avahi_entry_group_new() failed", avahi_strerror(avahi_client_errno(client)));
         //throw NullPointerException("Cannot create service group");
         return nullptr;
     }
     // The group is empty (either because it was just created
     if (avahi_entry_group_is_empty(group)) {
-        zsys_info("Adding service: %s,%s,%d," ,
+        log_info("Adding service: %s,%s,%d," ,
                 serviceName,
                 serviceDefinition[SERVICE_TYPE_KEY].c_str(),
                 std::stoi(serviceDefinition[SERVICE_PORT_KEY].c_str()));
@@ -158,14 +158,14 @@ AvahiEntryGroup* AvahiWrapper::create_service(AvahiClient* client,char* serviceN
             txtRecords);
         if (rv== AVAHI_ERR_COLLISION) {
             char *n = avahi_alternative_service_name(serviceName);
-            zsys_error( "Service name collision, renaming service from:%s to:%s" ,serviceName,n );
+            log_error( "Service name collision, renaming service from:%s to:%s" ,serviceName,n );
             avahi_free(_serviceName);
             serviceName = n;
             avahi_entry_group_reset(group);
             return create_service(client,serviceName,serviceDefinition,txtRecords); //potential deadlock :(
         }
         // Add subtype
-        zsys_info("Adding subtype: %s,%s,%s",
+        log_info("Adding subtype: %s,%s,%s",
                 serviceName,
                 serviceDefinition[SERVICE_TYPE_KEY].c_str(),
                 serviceDefinition[SERVICE_SUBTYPE_KEY].c_str());
@@ -178,7 +178,7 @@ AvahiEntryGroup* AvahiWrapper::create_service(AvahiClient* client,char* serviceN
                 nullptr,
                 serviceDefinition[SERVICE_SUBTYPE_KEY].c_str());
         if (rv<0){
-            zsys_error("Failed to add subtype: %s, %s" ,
+            log_error("Failed to add subtype: %s, %s" ,
                     serviceDefinition[SERVICE_SUBTYPE_KEY].c_str(),
                     avahi_strerror(rv));
             throw std::runtime_error("AFailed to add subtype:");
@@ -186,11 +186,11 @@ AvahiEntryGroup* AvahiWrapper::create_service(AvahiClient* client,char* serviceN
         // Tell the server to register the service.
         rv = avahi_entry_group_commit(group);
         if (rv<0){
-            zsys_error("Failed to commit entry group: %s" ,
+            log_error("Failed to commit entry group: %s" ,
                     avahi_strerror(rv));
             throw std::runtime_error("Registering Avahi services failed");
         }
-        zsys_info( "Service added" );
+        log_info( "Service added" );
     }
     return group;
 }
@@ -198,7 +198,7 @@ AvahiEntryGroup* AvahiWrapper::create_service(AvahiClient* client,char* serviceN
 void AvahiWrapper::update()
 {
     if (_group == NULL) {
-        zsys_warning ("Update called but service doesnt exist yet!");
+        log_warning ("Update called but service doesnt exist yet!");
         return;
     }
 
@@ -213,7 +213,7 @@ void AvahiWrapper::update()
         _txtRecords);
 
     if (rv < 0) {
-        zsys_error("Failed to update service: %s", avahi_strerror (rv));
+        log_error("Failed to update service: %s", avahi_strerror (rv));
     }
 }
 
@@ -225,7 +225,7 @@ void AvahiWrapper::onClientRunning(AvahiClient* client)
         _group = create_service(client,_serviceName,_serviceDefinition,_txtRecords);
     }
     catch (std::exception& e) {
-        zsys_error( "onClientRunning exception: %s" , e.what() );
+        log_error( "onClientRunning exception: %s" , e.what() );
     }
 }
 
@@ -237,7 +237,7 @@ void AvahiWrapper::clientCallback(AvahiClient* client, AvahiClientState state, v
             switch (state) {
 
                 case AVAHI_CLIENT_S_RUNNING:
-                    zsys_debug("AVAHI_CLIENT_S_RUNNING");
+                    log_debug("AVAHI_CLIENT_S_RUNNING");
                     /* The server has startup successfully and registered its host
                      * name on the network, so create our services */
                     //createServices(client);
@@ -245,17 +245,17 @@ void AvahiWrapper::clientCallback(AvahiClient* client, AvahiClientState state, v
                     break;
 
                 case AVAHI_CLIENT_S_REGISTERING:
-                    zsys_debug("AVAHI_CLIENT_S_REGISTERING");
+                    log_debug("AVAHI_CLIENT_S_REGISTERING");
                     if (clientWrapper->_group) avahi_entry_group_reset(clientWrapper->_group);
                     break;
                 case AVAHI_CLIENT_FAILURE:
-                    zsys_error("AVAHI_CLIENT_FAILURE :%", avahi_strerror(avahi_client_errno(client)));
+                    log_error("AVAHI_CLIENT_FAILURE :%", avahi_strerror(avahi_client_errno(client)));
                     break;
                 case AVAHI_CLIENT_S_COLLISION:
-                    zsys_warning("AVAHI_CLIENT_S_COLLISION");
+                    log_warning("AVAHI_CLIENT_S_COLLISION");
                     break;
                 case AVAHI_CLIENT_CONNECTING:
-                    zsys_debug("AVAHI_CLIENT_CONNECTING");
+                    log_debug("AVAHI_CLIENT_CONNECTING");
                     break;
                 default:
                     break;
@@ -263,7 +263,7 @@ void AvahiWrapper::clientCallback(AvahiClient* client, AvahiClientState state, v
         }
     }
     catch (std::exception& e) {
-        zsys_error( "clientCallback exception:%s " , e.what() );
+        log_error( "clientCallback exception:%s " , e.what() );
     }
 }
 
@@ -294,7 +294,7 @@ void AvahiWrapper::groupCallback(AvahiEntryGroup* group, AvahiEntryGroupState st
         }
     }
     catch (std::exception& e) {
-        zsys_error(  "groupCallback exception: %s",e.what() );
+        log_error(  "groupCallback exception: %s",e.what() );
     }
 }
 

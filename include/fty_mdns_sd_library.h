@@ -34,6 +34,7 @@
 #include <malamute.h>
 #include <avahi-client/client.h>
 #include <ftyproto.h>
+#include <fty_log.h>
 
 //  FTY_MDNS_SD version macros for compile-time API detection
 #define FTY_MDNS_SD_VERSION_MAJOR 1

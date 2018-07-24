@@ -30,6 +30,9 @@ Build-Depends: debhelper (>= 9),
     libmlm-dev,
     libavahi-client-dev,
     libfty-proto-dev,
+    liblog4cplus-dev,
+    libcxxtools-dev,
+    libfty-common-logging-dev,
     systemd,
     dh-systemd,
     asciidoc-base | asciidoc, xmlto,
@@ -53,6 +56,9 @@ Depends:
     libmlm-dev,
     libavahi-client-dev,
     libfty-proto-dev,
+    liblog4cplus-dev,
+    libcxxtools-dev,
+    libfty-common-logging-dev,
     libfty-mdns-sd0 (= ${binary:Version})
 Description: fty-mdns-sd development tools
  This package contains development files for fty-mdns-sd:

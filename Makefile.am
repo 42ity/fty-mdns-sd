@@ -18,10 +18,13 @@ AM_CPPFLAGS = \
     ${malamute_CFLAGS} \
     ${avahi_client_CFLAGS} \
     ${fty_proto_CFLAGS} \
+    ${log4cplus_CFLAGS} \
+    ${cxxtools_CFLAGS} \
+    ${fty_common_logging_CFLAGS} \
     -D__STDC_FORMAT_MACROS \
     -I$(srcdir)/include
 
-project_libs = ${libsodium_LIBS} ${libzmq_LIBS} ${czmq_LIBS} ${malamute_LIBS} ${avahi_client_LIBS} ${fty_proto_LIBS}
+project_libs = ${libsodium_LIBS} ${libzmq_LIBS} ${czmq_LIBS} ${malamute_LIBS} ${avahi_client_LIBS} ${fty_proto_LIBS} ${log4cplus_LIBS} ${cxxtools_LIBS} ${fty_common_logging_LIBS}
 
 SUBDIRS = doc
 SUBDIRS += include
@@ -48,6 +51,9 @@ EXTRA_DIST += \
     Findmalamute.cmake \
     Findavahi_client.cmake \
     Findfty_proto.cmake \
+    Findlog4cplus.cmake \
+    Findcxxtools.cmake \
+    Findfty_common_logging.cmake \
     builds/cmake/Modules/ClangFormat.cmake \
     builds/cmake/clang-format-check.sh.in \
     builds/cmake/Config.cmake.in \

@@ -207,7 +207,7 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
 
     char *cmd = zmsg_popstr (resp);
     if(strneq (cmd, "INFO")) {
-        zsys_error ("%s: not received INFO command (%s)", __func__, cmd);
+        log_error ("%s: not received INFO command (%s)", __func__, cmd);
         return -4;
     }
     char *srv_name  = zmsg_popstr (resp);

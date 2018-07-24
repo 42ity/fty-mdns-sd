@@ -72,12 +72,6 @@ main (int argc, char *argv [])
 
     log_info ("fty_mdns_sd - started");
 
-    // check env verbose
-    char* bios_log_level = getenv ("BIOS_LOG_LEVEL");
-    if (bios_log_level && streq (bios_log_level, "LOG_DEBUG")) {
-        verbose = 1;
-    }
-
     char* actor_name = (char*)"fty-mdns-sd";
     char* endpoint = (char*)"ipc://@/malamute";
     char*fty_info_command = (char*)"INFO";

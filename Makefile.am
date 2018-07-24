@@ -24,7 +24,7 @@ AM_CPPFLAGS = \
     -D__STDC_FORMAT_MACROS \
     -I$(srcdir)/include
 
-project_libs = ${libzmq_LIBS} ${czmq_LIBS} ${malamute_LIBS} ${avahi_client_LIBS} ${fty_proto_LIBS} ${log4cplus_LIBS} ${cxxtools_LIBS} ${fty_common_logging_LIBS}
+project_libs = ${libsodium_LIBS} ${libzmq_LIBS} ${czmq_LIBS} ${malamute_LIBS} ${avahi_client_LIBS} ${fty_proto_LIBS} ${log4cplus_LIBS} ${cxxtools_LIBS} ${fty_common_logging_LIBS}
 
 SUBDIRS = doc
 SUBDIRS += include
@@ -54,7 +54,6 @@ EXTRA_DIST += \
     Findlog4cplus.cmake \
     Findcxxtools.cmake \
     Findfty_common_logging.cmake \
-
     builds/cmake/Modules/ClangFormat.cmake \
     builds/cmake/clang-format-check.sh.in \
     builds/cmake/Config.cmake.in \

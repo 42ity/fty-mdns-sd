@@ -4,7 +4,6 @@
     Runs all selftests.
 
     -------------------------------------------------------------------------
-
     Copyright (C) 2014 - 2018 Eaton
 
     This program is free software; you can redistribute it and/or modify

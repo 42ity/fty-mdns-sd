@@ -56,10 +56,9 @@ BuildRequires:  zeromq-devel
 BuildRequires:  czmq-devel
 BuildRequires:  malamute-devel
 BuildRequires:  avahi-devel
-BuildRequires:  fty-proto-devel
 BuildRequires:  log4cplus-devel
-BuildRequires:  cxxtools-devel
 BuildRequires:  fty-common-logging-devel
+BuildRequires:  fty-proto-devel
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description
@@ -88,10 +87,9 @@ Requires:       zeromq-devel
 Requires:       czmq-devel
 Requires:       malamute-devel
 Requires:       avahi-devel
-Requires:       fty-proto-devel
 Requires:       log4cplus-devel
-Requires:       cxxtools-devel
 Requires:       fty-common-logging-devel
+Requires:       fty-proto-devel
 
 %description devel
 this service manages network anouncement (mdns) and discovery (dns-sd) development tools

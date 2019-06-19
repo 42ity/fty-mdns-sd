@@ -32,13 +32,13 @@
 //  External API
 #include "../include/fty_mdns_sd.h"
 
-//  Extra headers
-
 //  Opaque class structures to allow forward references
 #ifndef AVAHI_WRAPPER_T_DEFINED
 typedef struct _avahi_wrapper_t avahi_wrapper_t;
 #define AVAHI_WRAPPER_T_DEFINED
 #endif
+
+//  Extra headers
 
 //  Internal API
 

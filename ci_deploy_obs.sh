@@ -19,7 +19,4 @@ if [ "$BUILD_TYPE" == "default" -a -n "${GH_TOKEN}" -a -n "${OBS_STABLE_TOKEN}" 
     sleep 2 # try to avoid races if Github is slow
     curl -H "Authorization: Token ${OBS_STABLE_TOKEN}" -X POST https://api.opensuse.org/trigger/runservice
     curl -H "Authorization: Token ${OBS_DRAFT_TOKEN}" -X POST https://api.opensuse.org/trigger/runservice
-    # give some time for the git clone to happen before deleting the temp branch
-    sleep 60
-    curl -H "Authorization: token ${GH_TOKEN}" -X DELETE https://api.github.com/repos/42ity/fty-mdns-sd/git/refs/heads/tmp_obs_release_branch
 fi

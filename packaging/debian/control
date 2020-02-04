@@ -1,8 +1,6 @@
 #
 #    fty-mdns-sd - This service manages network anouncement (mDNS) and discovery (DNS-SD)
 #
-# Note: this file is customized after zproject generation, be sure to keep it
-#
 #    Copyright (C) 2014 - 2018 Eaton
 #
 #    This program is free software; you can redistribute it and/or modify
@@ -62,12 +60,9 @@ Description: fty-mdns-sd development tools
  This package contains development files for fty-mdns-sd:
  this service manages network anouncement (mdns) and discovery (dns-sd)
 
-# Note: manually added "avahi-daemon" for the service this package depends
-# on at run-time
 Package: fty-mdns-sd
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends},
-    avahi-daemon
 Description: runnable binaries from fty-mdns-sd
  Main package for fty-mdns-sd:
  this service manages network anouncement (mdns) and discovery (dns-sd)

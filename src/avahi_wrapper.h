@@ -30,7 +30,10 @@
 #include <sstream>
 #include <cstddef>
 #include <map>
-
+#include <stdexcept>
+#include <vector>
+#include <string>
+#include <mutex>
 
 #include <avahi-client/client.h>
 #include <avahi-client/publish.h>
@@ -38,6 +41,7 @@
 #include <avahi-common/simple-watch.h>
 #include <avahi-common/malloc.h>
 #include <avahi-common/error.h>
+#include <avahi-client/lookup.h>
 
 #include "fty_mdns_sd_classes.h"
 
@@ -50,6 +54,26 @@ typedef std::map<std::string, std::string> map_string_t;
 
 void avahi_wrapper_test (bool verbose);
 
+struct AvahiService {
+    AvahiService(AvahiProtocol p, const std::string &n, const std::string &t, const std::string &d);
+
+    AvahiProtocol protocol;
+    std::string name, type, domain;
+};
+
+struct AvahiResolvedService {
+    AvahiResolvedService(const AvahiService &s, const AvahiAddress *a, uint16_t p, const std::string &h, AvahiStringList *ptrtxt);
+
+    AvahiService service;
+    std::string address;
+    uint16_t port;
+    std::string hostname;
+    std::vector<std::string> txt;
+};
+
+
+using AvahiResolvedServices = std::vector<AvahiResolvedService>;
+
 class AvahiWrapper {
 protected:
     //friend class AvahiGroupWrapper;
@@ -58,21 +82,34 @@ protected:
      * All class variable for the service.
      */
     map_string_t _serviceDefinition;
-    char* _serviceName = nullptr;
-    AvahiStringList* _txtRecords = nullptr;
-
-    std::string getServiceName(const std::string &service_name,const std::string &uuid);
-    AvahiEntryGroup* create_service(AvahiClient* client,char* serviceName,map_string_t &serviceDefinition,AvahiStringList *txtRecords);
+    char* _serviceName;
+    AvahiStringList* _txtRecords;
 
     /**
      * All class variable to handle the avahi client object.
      */
-    AvahiSimplePoll* _simplePoll = nullptr;
-    AvahiClient* _client = nullptr;
-    AvahiEntryGroup* _group = nullptr;
+    AvahiSimplePoll* _simplePoll;
+    AvahiClient* _client;
+    AvahiEntryGroup* _group;
+
+    AvahiSimplePoll* _scanPoll;
+    AvahiClient* _scanClient;
+    AvahiServiceBrowser* _serviceBrowser;
+    int _servicesToResolve;
+    bool _doneBrowsing;
+    bool _failed;
+    AvahiResolvedServices _resolvedServices;
+    std::mutex _scanMutex;
+
+    std::string constructServiceName(const std::string &service_name,const std::string &uuid);
+    AvahiEntryGroup* createService(AvahiClient* client,char* serviceName,map_string_t &serviceDefinition,AvahiStringList *txtRecords);
+
+    bool isFinished() const {
+        return (_doneBrowsing && (_servicesToResolve == 0)) || _failed;
+    }
 
 public:
-
+    AvahiWrapper();
     ~AvahiWrapper();
 
     void setServiceDefinition(
@@ -81,27 +118,28 @@ public:
         const std::string& service_stype,
         const std::string& port);
 
+    char *getServiceName() { return _serviceName; };
+    AvahiEntryGroup *getGroup() { return _group; };
+
     void clearTxtRecords();
     void setTxtRecord(const char* key, const char*value);
     void setTxtRecords(map_string_t &map);
     void setTxtRecords(zhash_t *map);
 
     void setHostName(const std::string& name);
-
     void printError(const std::string& msg, const char* errorNo);
-
     int start();
-
     void stop();
-
     void update();
 
-protected:
+    AvahiResolvedServices scanServices(const std::string &type);
 
-    void onClientRunning(AvahiClient* client);
-
-    static void clientCallback(AvahiClient* client, AvahiClientState state, void *userdata);
-
-    static void groupCallback(AvahiEntryGroup* group, AvahiEntryGroupState state, void *userdata);
+    void clientCallback(AvahiClient* client);
+    void resolveCallback(AvahiResolverEvent event, const AvahiResolvedService &service);
+    void resolveFailureCallback(AvahiResolverEvent event);
+    void browseCallback(AvahiBrowserEvent event, AvahiIfIndex interface, AvahiProtocol protocol, const AvahiService &service);
+    void browseDoneCallback(AvahiBrowserEvent event);
+    void browseFailureCallback(AvahiBrowserEvent event);
+    void scanClientCallback(AvahiClientState event);
 };
 #endif

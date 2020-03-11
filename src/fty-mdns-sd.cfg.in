@@ -9,5 +9,14 @@ fty-info
 malamute
     endpoint = ipc://@/malamute                     #   Malamute endpoint
     address = fty-mdns-sd                           #   Agent mdns-sd address=
+
+scan
+    daemonactive = false
+    stdout = false
+    nobusout = false
+    command = START-SCAN
+    topic = SCAN-ANNOUNCE
+    type = _https._tcp
+
 log
     config = /etc/fty/ftylog.cfg

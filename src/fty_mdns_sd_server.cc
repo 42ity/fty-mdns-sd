@@ -47,6 +47,12 @@ struct _fty_mdns_sd_server_t {
     char *srv_port;
     //TXT attributes
     zhash_t *map_txt;
+
+    char *scan_command;
+    char *scan_topic;
+    char *scan_type;
+    bool scan_std_out;
+    bool scan_no_bus_out;
 };
 
 //free dynamic item
@@ -85,7 +91,6 @@ s_set_srv_name(fty_mdns_sd_server_t *self,const char *value)
     zstr_free (&self->srv_name);
     char *_value = strdup(value);
     self->srv_name = _value;
-
 }
 
 static void
@@ -96,7 +101,6 @@ s_set_srv_port(fty_mdns_sd_server_t *self,const char *value)
     zstr_free (&self->srv_port);
     char *_value = strdup(value);
     self->srv_port = _value;
-
 }
 
 static void
@@ -107,7 +111,6 @@ s_set_srv_type(fty_mdns_sd_server_t *self,const char *value)
     zstr_free (&self->srv_type);
     char *_value = strdup(value);
     self->srv_type = _value;
-
 }
 
 static void
@@ -118,7 +121,36 @@ s_set_srv_stype(fty_mdns_sd_server_t *self,const char *value)
     zstr_free (&self->srv_stype);
     char *_value = strdup(value);
     self->srv_stype = _value;
+}
 
+static void
+s_set_scan_command(fty_mdns_sd_server_t *self, const char *value)
+{
+    if (value == NULL) return;
+    // delete previous value
+    zstr_free(&self->scan_command);
+    char *_value = strdup(value);
+    self->scan_command = _value;
+}
+
+static void
+s_set_scan_topic(fty_mdns_sd_server_t *self, const char *value)
+{
+    if (value == NULL) return;
+    // delete previous value
+    zstr_free(&self->scan_topic);
+    char *_value = strdup(value);
+    self->scan_topic = _value;
+}
+
+static void
+s_set_scan_type(fty_mdns_sd_server_t *self,const char *value)
+{
+    if (value == NULL) return;
+    // delete previous value
+    zstr_free(&self->scan_type);
+    char *_value = strdup(value);
+    self->scan_type = _value;
 }
 
 //  --------------------------------------------------------------------------
@@ -140,8 +172,14 @@ fty_mdns_sd_server_new (const char* name)
     self->map_txt = zhash_new();
 
     //do minimal initialization
-    s_set_txt_record(self,"uuid",
-        "00000000-0000-0000-0000-000000000000");
+    s_set_txt_record(self, "uuid", "00000000-0000-0000-0000-000000000000");
+
+    self->scan_command = NULL;
+    self->scan_topic = NULL;
+    self->scan_type = NULL;
+    self->scan_std_out = false;
+    self->scan_no_bus_out = false;
+
     return self;
 }
 
@@ -165,6 +203,9 @@ fty_mdns_sd_server_destroy (fty_mdns_sd_server_t **self_p)
         mlm_client_destroy (&self->client);
         zhash_destroy (&self->map_txt);
         delete self->service;
+        zstr_free (&self->scan_command);
+        zstr_free (&self->scan_topic);
+        zstr_free (&self->scan_type);
         //  Free object itself
         free (self);
         *self_p = NULL;
@@ -184,7 +225,7 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
     zuuid_t *uuid = zuuid_new ();
     zmsg_addstr (send, zuuid_str_canonical (uuid));
     log_debug ("requesting fty-info ..");
-    if(mlm_client_sendto(self->client,"fty-info","info", NULL, 1000, &send)!=0)
+    if (mlm_client_sendto(self->client, "fty-info", "info", NULL, 1000, &send) != 0)
     {
         log_error("info: client->sendto (address = '%s') failed.", "fty-info");
         zmsg_destroy(&send);
@@ -236,6 +277,52 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
     return 0;
 }
 
+void static
+s_publish_msg_service(mlm_client_t *client, AvahiResolvedServices& avahiServices) {
+
+    for(const AvahiResolvedService avahiService : avahiServices)
+    {
+        zmsg_t *msg_service = zmsg_new();
+        std::stringstream buffer;
+        buffer << "service.hostname=" << avahiService.hostname;
+        zmsg_addstr(msg_service, buffer.str().c_str());
+        buffer.str("");
+        buffer << "service.name=" << avahiService.service.name;
+        zmsg_addstr(msg_service, buffer.str().c_str());
+        buffer.str("");
+        buffer << "service.address=" << avahiService.address;
+        zmsg_addstr(msg_service, buffer.str().c_str());
+        buffer.str("");
+        buffer << "service.port=" << avahiService.port;
+        zmsg_addstr(msg_service, buffer.str().c_str());
+        for (const auto &txt : avahiService.txt) {
+            zmsg_addstr(msg_service, txt.c_str());
+        }
+        //std::cout << ">>>>>> Send message from " << avahiService.hostname << std::endl;
+        int rc = mlm_client_send(client, "MESSAGE", &msg_service);
+        if (rc != 0)
+        {
+            log_error("mlm_client_send failed (rc: %d)", rc);
+        }
+        zmsg_destroy(&msg_service);
+    }
+}
+
+void static
+s_output_service(AvahiResolvedServices& avahiServices) {
+
+    for (const auto &result : avahiServices) {
+        std::cout << std::string(30, '*') << std::endl;
+        std::cout << "service.hostname=" << result.hostname << std::endl;
+        std::cout << "service.name=" << result.service.name << std::endl;
+        std::cout << "service.address=" << result.address << std::endl;
+        std::cout << "service.port=" << result.port << std::endl;
+        for (const auto &txt : result.txt) {
+            std::cout << txt << std::endl;
+        }
+    }
+}
+
 //  --------------------------------------------------------------------------
 //  process pipe message
 //  return true means continue, false means TERM
@@ -244,6 +331,7 @@ s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
 {
     if (! message_p || ! *message_p) return true;
     zmsg_t *message = *message_p;
+    bool res = true;
 
     char *command = zmsg_popstr (message);
     if (!command) {
@@ -274,8 +362,7 @@ s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         char *stream = zmsg_popstr (message);
         char *pattern = zmsg_popstr (message);
         if (stream && pattern) {
-            log_debug("fty-mdns-sd-server: CONSUMER [%s,%s]",
-                    stream,pattern) ;
+            log_debug("fty-mdns-sd-server: CONSUMER [%s,%s]", stream, pattern);
             int r = mlm_client_set_consumer (self->client, stream, pattern);
             if (r == -1) {
                 log_error ("%s:\tSet consumer to '%s' with pattern '%s' failed", self->name, stream, pattern);
@@ -285,6 +372,21 @@ s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         }
         zstr_free (&stream);
         zstr_free (&pattern);
+    }
+    else
+    if (streq(command, "PRODUCER")) {
+        char *scan_topic = zmsg_popstr(message);
+        s_set_scan_topic(self, scan_topic);
+        if (scan_topic) {
+            log_debug("fty-mdns-sd-server: PRODUCER [%s]", scan_topic);
+            int r = mlm_client_set_producer(self->client, scan_topic);
+            if (r == -1) {
+                log_error("%s:\tSet producer to '%s' failed", self->name, scan_topic);
+            }
+        } else {
+            log_error("%s:\tMissing params in PRODUCER command", self->name);
+        }
+        zstr_free(&scan_topic);
     }
     else
     if (streq (command, "SET-DEFAULT-SERVICE")) {
@@ -345,11 +447,46 @@ s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         self->service->start();
     }
     else
-        log_warning ("%s:\tUnkown API command=%s, ignoring",
-                self->name, command);
+    if (streq (command, "DO-ANNOUNCE")) {
+        self->service->setServiceDefinition(
+            self->srv_name,
+            self->srv_type,
+            self->srv_stype,
+            self->srv_port);
+        // set all txt properties
+        self->service->setTxtRecords(self->map_txt);
+        self->service->start();
+    }
+    else
+    if (streq(command, "SCAN-PARAMETERS")) {
+        char *scan_command = zmsg_popstr(message);
+        char *scan_type = zmsg_popstr(message);
+        self->scan_std_out = streq(zmsg_popstr(message), "true");
+        self->scan_no_bus_out = streq(zmsg_popstr(message), "true");
+        s_set_scan_command(self, scan_command);
+        s_set_scan_type(self, scan_type);
+        zstr_free(&scan_command);
+        zstr_free(&scan_type);
+    }
+    else
+    if (streq (command, "DO-SCAN")) {
+        auto results = self->service->scanServices(self->scan_type);
+        // publish result on bus if not deactivated
+        if (!self->scan_no_bus_out) {
+            s_publish_msg_service(self->client, results);
+        }
+        // display result on stdout if activated
+        if (self->scan_std_out) {
+            s_output_service(results);
+        }
+        res = false;
+    }
+    else {
+        log_warning ("%s:\tUnkown API command=%s, ignoring", self->name, command);
+    }
     zstr_free (&command);
     zmsg_destroy (&message);
-    return true;
+    return res;
 }
 //  --------------------------------------------------------------------------
 //  process message from ANNOUNCE stream
@@ -387,6 +524,17 @@ s_handle_stream(fty_mdns_sd_server_t* self, zmsg_t **message_p)
             zstr_free(&srv_stype);
             zstr_free(&srv_port);
             zstr_free (&srv_name);
+        }
+        else if (self->scan_command && streq(cmd, self->scan_command)) {
+            auto results = self->service->scanServices(self->scan_type);
+            // publish result on bus if not deactivated
+            if (!self->scan_no_bus_out) {
+                s_publish_msg_service(self->client, results);
+            }
+            // display result on stdout if activated
+            if (self->scan_std_out) {
+                s_output_service(results);
+            }
         }
         else {
             log_error ("Unknown command %s", cmd);
@@ -430,6 +578,8 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
         if (which == pipe) {
             zmsg_t *message = zmsg_recv (pipe);
             if(! s_handle_pipe (self, &message)) {
+                // send command to exit main
+                zstr_sendx(pipe, "STOP", NULL);
                 break; // TERM
             }
             // end of command pipe processing
@@ -450,8 +600,8 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
     self->service->stop();
     fty_mdns_sd_server_destroy (&self);
     zpoller_destroy (&poller);
-
 }
+
 //  --------------------------------------------------------------------------
 //  Self test of this class
 
@@ -460,27 +610,81 @@ fty_mdns_sd_server_test (bool verbose)
 {
     printf (" * fty_mdns_sd_server: ");
 
-    //  @selftest
-    //  Simple create/destroy test
+    // @selftest
 
-    zactor_t *server = zactor_new (fty_mdns_sd_server, (void*)"fty-mdns-sd-test");
-    assert (server);
+    // Default service announcement (this test needs avahi-deamon running)
+    {
+        zactor_t *server = zactor_new(fty_mdns_sd_server, (void*)"fty-mdns-sd-test");
+        assert(server);
 
-    zstr_sendx (server, "CONNECT", "ipc://@/malamute", NULL);
+        zstr_sendx(server, "CONNECT", "ipc://@/malamute", NULL);
 
-    zclock_sleep (1000);
+        zclock_sleep(1000);
 
+        // do first announcement
+        zstr_sendx(server, "DO-DEFAULT-ANNOUNCE", "INFO", NULL);
+        zactor_destroy(&server);
+    }
 
-    zstr_sendx (server, "SET-DEFAULT-SERVICE",
-            "IPC (12345678)","_https._tcp.","_powerservice._sub._https._tcp.","443", NULL);
-    zstr_sendx (server, "SET-DEFAULT-TXT",
-            "txtvers","1.0.0",NULL);
+    // Specific service announcement and detect it with scan (this test needs avahi-deamon running)
+    {
+        zactor_t *server = zactor_new(fty_mdns_sd_server, (void*)"fty-mdns-sd-test");
+        assert(server);
 
-    //do first announcement
-    //this test needs avahi-deamon running
-    //zstr_sendx (server, "DO-DEFAULT-ANNOUNCE", "INFO",NULL);
+        zstr_sendx(server, "CONNECT", "ipc://@/malamute", NULL);
 
-    zactor_destroy (&server);
+        zclock_sleep(1000);
+
+        zuuid_t *uuid = zuuid_new();
+        std::string strUuid(zuuid_str_canonical(uuid));
+        zuuid_destroy(&uuid);
+
+        std::stringstream buffer;
+        buffer << "IPM TEST (" << strUuid << ")";
+        std::string name = buffer.str();
+
+        zstr_sendx(server, "SET-DEFAULT-SERVICE", name.c_str(), "_https._tcp.", "_powerservice._sub._https._tcp.", "443", NULL);
+        zstr_sendx(server, "SET-DEFAULT-TXT", "txtvers", "1.0.0", NULL);
+
+        // do announcement
+        zstr_sendx(server, "DO-ANNOUNCE", NULL);
+
+        zclock_sleep(1000);
+
+        // redirect stdout for checking scan result
+        buffer.str("");
+        std::streambuf *backup = std::cout.rdbuf(buffer.rdbuf());
+
+        // scan all services
+        const char *scan_topic = "SCAN-ANNOUNCE";
+        const char *scan_type = "_https._tcp";
+        bool scan_std_out = true;
+        bool scan_no_bus_out = false;
+        if (!scan_no_bus_out) zstr_sendx(server, "PRODUCER", scan_topic, NULL);
+        zstr_sendx(server, "SCAN-PARAMETERS", "", scan_type, scan_std_out ? "true" : "false", scan_no_bus_out ? "true" : "false", NULL);
+        zstr_sendx(server, "DO-SCAN", NULL);
+        // wait end of scan (TODO timeout ?)
+        while (!zsys_interrupted) {
+            zmsg_t *msg = zactor_recv(server);
+            char *command = zmsg_popstr(msg);
+            if (streq(command, "STOP")) {
+                break;
+            }
+            zmsg_destroy(&msg);
+        }
+
+        // restore stdout
+        std::cout.rdbuf(backup);
+        std::cout << buffer.str() << std::endl;
+
+        // test if announcement test has been detected during scan
+        // Note: test pass even if avahi daemon not running (local boucle)
+        assert(buffer.str().find(name) != std::string::npos);
+
+        zactor_destroy(&server);
+    }
+
     //  @end
-    printf ("OK\n");
+    printf("OK\n");
 }
+

@@ -29,7 +29,7 @@
 #include "fty_mdns_sd_classes.h"
 #include "avahi_wrapper.h"
 
-#define default_log_config "/etc/fty/ftylog.cfg"
+#define DEFAULT_LOG_CONFIG "/etc/fty/ftylog.cfg"
 
 void
 usage(){
@@ -44,48 +44,49 @@ usage(){
     puts ("  -n|--nopublishbus   not publish scan devices result on malamute bus");
 }
 
-char*
+std::string
 s_get (zconfig_t *config, const char* key, std::string &dfl) {
     assert (config);
-    char *ret = zconfig_get (config, key, dfl.c_str());
-    if (!ret || streq (ret, ""))
-        return (char*)dfl.c_str();
-    return ret;
+    char *value = zconfig_get(config, key, dfl.c_str());
+    if (!value || streq(value, ""))
+        return dfl;
+    return std::string(value);
 }
 
-char*
-s_get (zconfig_t *config, const char* key, char*dfl) {
+std::string
+s_get (zconfig_t *config, const char *key, const char *dfl) {
     assert (config);
-    char *ret = zconfig_get (config, key, dfl);
-    if (!ret || streq (ret, ""))
-        return dfl;
-    return ret;
+    char *value = zconfig_get(config, key, dfl);
+    if (!value || streq(value, "")) {
+        return (!dfl) ? std::string(dfl) : std::string("");
+    }
+    return std::string(value);
 }
 
 
 int
 main (int argc, char *argv [])
 {
-    char *config_file = NULL;
+    std::string config_file;
+    std::string log_config;
     zconfig_t *config = NULL;
-    char *log_config = NULL;
 
     bool verbose = false;
     int argn;
 
     log_info ("fty_mdns_sd - started");
 
-    char *actor_name = (char *)"fty-mdns-sd";
-    char *endpoint = (char *)"ipc://@/malamute";
-    char *fty_info_command = (char *)"INFO";
+    std::string actor_name("fty-mdns-sd");
+    std::string endpoint("ipc://@/malamute");
+    std::string fty_info_command("INFO");
 
     bool scan_only = false;
     bool scan_daemon_active = false;
     bool scan_std_out = false;
     bool scan_no_publish_bus = false;
-    char *scan_command = (char *)DEFAULT_SCAN_COMMAND;
-    char *scan_topic = (char *)DEFAULT_SCAN_ANNOUNCE;
-    char *scan_type = (char *)DEFAULT_SCAN_TYPE;
+    std::string scan_command(DEFAULT_SCAN_COMMAND);
+    std::string scan_topic(DEFAULT_SCAN_ANNOUNCE);
+    std::string scan_type(DEFAULT_SCAN_TYPE);
 
     ManageFtyLog::setInstanceFtylog(actor_name);
 
@@ -129,60 +130,52 @@ main (int argc, char *argv [])
     }
 
     //parse config file
-    if (config_file) {
-        log_debug ("fty_mdns_sd:LOAD: %s", config_file);
-        config = zconfig_load(config_file);
+    if (!config_file.empty()) {
+        log_debug ("fty_mdns_sd:LOAD: %s", config_file.c_str());
+        config = zconfig_load(config_file.c_str());
         if (!config) {
-            log_error ("Failed to load config file %s: %m", config_file);
+            log_error ("Failed to load config file %s: %m", config_file.c_str());
             exit (EXIT_FAILURE);
         }
-        // VERBOSE
-        if (streq (zconfig_get(config, "server/verbose", "false"), "true")) {
-            verbose = true;
-        }
+        verbose = s_get(config, "server/verbose", "false") == std::string("true");
         endpoint = s_get(config, "malamute/endpoint", endpoint);
         actor_name = s_get(config, "malamute/address", actor_name);
         fty_info_command = s_get(config, "fty-info/command", fty_info_command);
-
-        if (streq(zconfig_get(config, "scan/daemonactive", "false"), "true")) {
-            scan_daemon_active = true;
-        }
-        if (streq(zconfig_get(config, "scan/stdout", "true"), "true")) {
-            scan_std_out = true;
-        }
-        if (streq(zconfig_get(config, "scan/nobusout", "false"), "true")) {
-            scan_no_publish_bus = true;
-        }
+        scan_daemon_active = s_get(config, "scan/daemonactive", "false") == std::string("true");
+        scan_std_out = s_get(config, "scan/stdout", "true") == std::string("true");
+        scan_no_publish_bus = s_get(config, "scan/nobusout", "false") == std::string("true");
         scan_command = s_get(config, "scan/command", scan_command);
         scan_topic = s_get(config, "scan/topic", scan_topic);
         scan_type = s_get(config, "scan/type", scan_type);
-
-        log_config = zconfig_get(config, "log/config", default_log_config);
+        log_config = s_get(config, "log/config", DEFAULT_LOG_CONFIG);
     }
     else {
-        log_config = (char *)default_log_config;
+        log_config = DEFAULT_LOG_CONFIG;
     }
-    ManageFtyLog::getInstanceFtylog()->setConfigFile(std::string (log_config));
-    if (verbose)
+    ManageFtyLog::getInstanceFtylog()->setConfigFile(log_config);
+    if (verbose) {
         ManageFtyLog::getInstanceFtylog()->setVeboseMode();
+    }
 
-    zactor_t *server = zactor_new(fty_mdns_sd_server, (void*)actor_name);
+    zactor_t *server = zactor_new(fty_mdns_sd_server, (void*)actor_name.c_str());
     assert(server);
-    zstr_sendx(server, "CONNECT", endpoint, NULL);
+    zstr_sendx(server, "CONNECT", endpoint.c_str(), NULL);
     if (!scan_only) {
         zstr_sendx(server, "CONSUMER", "ANNOUNCE", ".*", NULL);
         log_info("scan_daemon_active=%u", scan_daemon_active);
         if (scan_daemon_active) {
-            zstr_sendx(server, "PRODUCER", scan_topic, NULL);
-            zstr_sendx(server, "SCAN-PARAMETERS", scan_command, scan_type, scan_std_out ? "true" : "false", scan_no_publish_bus ? "true" : "false", NULL);
+            zstr_sendx(server, "PRODUCER", scan_topic.c_str(), NULL);
+            zstr_sendx(server, "SCAN-PARAMETERS", scan_command.c_str(), scan_type.c_str(),
+                scan_std_out ? "true" : "false", scan_no_publish_bus ? "true" : "false", NULL);
         }
         ////do first announcement
         zclock_sleep(5000);
-        zstr_sendx(server, "DO-DEFAULT-ANNOUNCE", fty_info_command, NULL);
+        zstr_sendx(server, "DO-DEFAULT-ANNOUNCE", fty_info_command.c_str(), NULL);
     }
     else {
-        if (!scan_no_publish_bus) zstr_sendx(server, "PRODUCER", scan_topic, NULL);
-        zstr_sendx(server, "SCAN-PARAMETERS", scan_command, scan_type, scan_std_out ? "true" : "false", scan_no_publish_bus ? "true" : "false", NULL);
+        if (!scan_no_publish_bus) zstr_sendx(server, "PRODUCER", scan_topic.c_str(), NULL);
+        zstr_sendx(server, "SCAN-PARAMETERS", scan_command.c_str(), scan_type.c_str(),
+            scan_std_out ? "true" : "false", scan_no_publish_bus ? "true" : "false", NULL);
         zstr_sendx(server, "DO-SCAN", NULL);
     }
 

@@ -283,22 +283,17 @@ s_publish_msg_service(mlm_client_t *client, AvahiResolvedServices& avahiServices
     for(const AvahiResolvedService avahiService : avahiServices)
     {
         zmsg_t *msg_service = zmsg_new();
-        std::stringstream buffer;
-        buffer << "service.hostname=" << avahiService.hostname;
-        zmsg_addstr(msg_service, buffer.str().c_str());
-        buffer.str("");
-        buffer << "service.name=" << avahiService.service.name;
-        zmsg_addstr(msg_service, buffer.str().c_str());
-        buffer.str("");
-        buffer << "service.address=" << avahiService.address;
-        zmsg_addstr(msg_service, buffer.str().c_str());
-        buffer.str("");
-        buffer << "service.port=" << avahiService.port;
-        zmsg_addstr(msg_service, buffer.str().c_str());
+        for (const auto& data : std::vector<std::string>({
+            std::string("service.hostname=") + avahiService.hostname,
+            std::string("service.name=") + avahiService.service.name,
+            std::string("service.address=") + avahiService.address,
+            std::string("service.port=") + std::to_string(avahiService.port)
+        })) {
+            zmsg_addstr(msg_service, data.c_str());
+        }
         for (const auto &txt : avahiService.txt) {
             zmsg_addstr(msg_service, txt.c_str());
         }
-        //std::cout << ">>>>>> Send message from " << avahiService.hostname << std::endl;
         int rc = mlm_client_send(client, "MESSAGE", &msg_service);
         if (rc != 0)
         {

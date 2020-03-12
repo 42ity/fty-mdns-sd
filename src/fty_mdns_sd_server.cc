@@ -625,7 +625,7 @@ fty_mdns_sd_server_test (bool verbose)
         zclock_sleep(1000);
 
         // do first announcement
-#if AVAHI_DAEMON_RUNNING
+#ifdef AVAHI_DAEMON_RUNNING
         zstr_sendx(server, "DO-DEFAULT-ANNOUNCE", "INFO", NULL);
 #endif
         zactor_destroy(&server);
@@ -651,7 +651,7 @@ fty_mdns_sd_server_test (bool verbose)
         zstr_sendx(server, "SET-DEFAULT-SERVICE", name.c_str(), "_https._tcp.", "_powerservice._sub._https._tcp.", "443", NULL);
         zstr_sendx(server, "SET-DEFAULT-TXT", "txtvers", "1.0.0", NULL);
 
-#if AVAHI_DAEMON_RUNNING
+#ifdef AVAHI_DAEMON_RUNNING
         // do announcement
         zstr_sendx(server, "DO-ANNOUNCE", NULL);
 

@@ -41,7 +41,7 @@ usage(){
     puts ("  -d|--daemonscan     activate scan daemon");
     puts ("  -s|--scan           scan devices and quit");
     puts ("  -o|--stdout         display scan devices result on standard output");
-    puts ("  -n|--nobusout       not send scan devices result on malamute bus");
+    puts ("  -n|--nopublishbus   not publish scan devices result on malamute bus");
 }
 
 char*
@@ -82,11 +82,10 @@ main (int argc, char *argv [])
     bool scan_only = false;
     bool scan_daemon_active = false;
     bool scan_std_out = false;
-    bool scan_no_bus_out = false;
-    char *scan_command = (char *)"START-SCAN";
-    char *scan_topic = (char *)"SCAN-ANNOUNCE";
-    char *scan_type = (char *)"_https._tcp";
-
+    bool scan_no_publish_bus = false;
+    char *scan_command = (char *)DEFAULT_SCAN_COMMAND;
+    char *scan_topic = (char *)DEFAULT_SCAN_ANNOUNCE;
+    char *scan_type = (char *)DEFAULT_SCAN_TYPE;
 
     ManageFtyLog::setInstanceFtylog(actor_name);
 
@@ -120,8 +119,8 @@ main (int argc, char *argv [])
         else if (streq (argv [argn], "--stdout") || streq (argv [argn], "-o")) {
             scan_std_out = true;
         }
-        else if (streq (argv [argn], "--nobusout") || streq (argv [argn], "-n")) {
-            scan_no_bus_out = true;
+        else if (streq (argv [argn], "--nopublishbus") || streq (argv [argn], "-n")) {
+            scan_no_publish_bus = true;
         }
         else {
             printf ("Unknown option: %s\n", argv [argn]);
@@ -152,7 +151,7 @@ main (int argc, char *argv [])
             scan_std_out = true;
         }
         if (streq(zconfig_get(config, "scan/nobusout", "false"), "true")) {
-            scan_no_bus_out = true;
+            scan_no_publish_bus = true;
         }
         scan_command = s_get(config, "scan/command", scan_command);
         scan_topic = s_get(config, "scan/topic", scan_topic);
@@ -175,15 +174,15 @@ main (int argc, char *argv [])
         log_info("scan_daemon_active=%u", scan_daemon_active);
         if (scan_daemon_active) {
             zstr_sendx(server, "PRODUCER", scan_topic, NULL);
-            zstr_sendx(server, "SCAN-PARAMETERS", scan_command, scan_type, scan_std_out ? "true" : "false", scan_no_bus_out ? "true" : "false", NULL);
+            zstr_sendx(server, "SCAN-PARAMETERS", scan_command, scan_type, scan_std_out ? "true" : "false", scan_no_publish_bus ? "true" : "false", NULL);
         }
         ////do first announcement
         zclock_sleep(5000);
         zstr_sendx(server, "DO-DEFAULT-ANNOUNCE", fty_info_command, NULL);
     }
     else {
-        if (!scan_no_bus_out) zstr_sendx(server, "PRODUCER", scan_topic, NULL);
-        zstr_sendx(server, "SCAN-PARAMETERS", scan_command, scan_type, scan_std_out ? "true" : "false", scan_no_bus_out ? "true" : "false", NULL);
+        if (!scan_no_publish_bus) zstr_sendx(server, "PRODUCER", scan_topic, NULL);
+        zstr_sendx(server, "SCAN-PARAMETERS", scan_command, scan_type, scan_std_out ? "true" : "false", scan_no_publish_bus ? "true" : "false", NULL);
         zstr_sendx(server, "DO-SCAN", NULL);
     }
 

@@ -189,7 +189,7 @@ AvahiWrapper::~AvahiWrapper()
 }
 
 std::string
-AvahiWrapper::constructServiceName(const std::string &service_name,const std::string &uuid)
+AvahiWrapper::buildServiceName(const std::string &service_name,const std::string &uuid)
 {
     std::ostringstream buffer;
     buffer << service_name << " ("<< uuid.substr(0, uuid.find("-")) << ")";

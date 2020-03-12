@@ -52,7 +52,7 @@ struct _fty_mdns_sd_server_t {
     char *scan_topic;
     char *scan_type;
     bool scan_std_out;
-    bool scan_no_bus_out;
+    bool scan_no_publish_bus;
 };
 
 //free dynamic item
@@ -178,7 +178,7 @@ fty_mdns_sd_server_new (const char* name)
     self->scan_topic = NULL;
     self->scan_type = NULL;
     self->scan_std_out = false;
-    self->scan_no_bus_out = false;
+    self->scan_no_publish_bus = false;
 
     return self;
 }
@@ -462,7 +462,7 @@ s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         char *scan_command = zmsg_popstr(message);
         char *scan_type = zmsg_popstr(message);
         self->scan_std_out = streq(zmsg_popstr(message), "true");
-        self->scan_no_bus_out = streq(zmsg_popstr(message), "true");
+        self->scan_no_publish_bus = streq(zmsg_popstr(message), "true");
         s_set_scan_command(self, scan_command);
         s_set_scan_type(self, scan_type);
         zstr_free(&scan_command);
@@ -472,7 +472,7 @@ s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
     if (streq (command, "DO-SCAN")) {
         auto results = self->service->scanServices(self->scan_type);
         // publish result on bus if not deactivated
-        if (!self->scan_no_bus_out) {
+        if (!self->scan_no_publish_bus) {
             s_publish_msg_service(self->client, results);
         }
         // display result on stdout if activated
@@ -528,7 +528,7 @@ s_handle_stream(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         else if (self->scan_command && streq(cmd, self->scan_command)) {
             auto results = self->service->scanServices(self->scan_type);
             // publish result on bus if not deactivated
-            if (!self->scan_no_bus_out) {
+            if (!self->scan_no_publish_bus) {
                 s_publish_msg_service(self->client, results);
             }
             // display result on stdout if activated
@@ -662,8 +662,8 @@ fty_mdns_sd_server_test (bool verbose)
         std::streambuf *backup = std::cout.rdbuf(buffer.rdbuf());
 
         // scan all services
-        const char *scan_topic = "SCAN-ANNOUNCE";
-        const char *scan_type = "_https._tcp";
+        const char *scan_topic = DEFAULT_SCAN_ANNOUNCE;
+        const char *scan_type = DEFAULT_SCAN_TYPE;
         bool scan_std_out = true;
         bool scan_no_bus_out = false;
         if (!scan_no_bus_out) zstr_sendx(server, "PRODUCER", scan_topic, NULL);

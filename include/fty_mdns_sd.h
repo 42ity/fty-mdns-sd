@@ -26,5 +26,8 @@
 #include "fty_mdns_sd_library.h"
 
 //  Add your own public definitions here, if you need them
+#define DEFAULT_SCAN_COMMAND   "START-SCAN"
+#define DEFAULT_SCAN_ANNOUNCE  "SCAN-ANNOUNCE"
+#define DEFAULT_SCAN_TYPE      "_https._tcp"
 
 #endif

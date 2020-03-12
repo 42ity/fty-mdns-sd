@@ -101,7 +101,7 @@ protected:
     AvahiResolvedServices _resolvedServices;
     std::mutex _scanMutex;
 
-    std::string constructServiceName(const std::string &service_name,const std::string &uuid);
+    std::string buildServiceName(const std::string &service_name,const std::string &uuid);
     AvahiEntryGroup* createService(AvahiClient* client,char* serviceName,map_string_t &serviceDefinition,AvahiStringList *txtRecords);
 
     bool isFinished() const {

@@ -70,8 +70,6 @@ main (int argc, char *argv [])
     zconfig_t *config = NULL;
     char *log_config = NULL;
 
-    bool scan_only = false;
-    bool daemon_scan = false;
     bool verbose = false;
     int argn;
 
@@ -81,6 +79,7 @@ main (int argc, char *argv [])
     char *endpoint = (char *)"ipc://@/malamute";
     char *fty_info_command = (char *)"INFO";
 
+    bool scan_only = false;
     bool scan_daemon_active = false;
     bool scan_std_out = false;
     bool scan_no_bus_out = false;

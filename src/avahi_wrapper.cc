@@ -469,7 +469,7 @@ void AvahiWrapper::scanClientCallback(AvahiClientState event) {
 
 void avahi_wrapper_test (bool verbose) {
     printf ("Avahi wrapper test\n");
-    AvahiWrapper wrapper;
+    /*AvahiWrapper wrapper;
     auto results = wrapper.scanServices("_https._tcp");
 
     for (const auto &result : results) {
@@ -481,5 +481,5 @@ void avahi_wrapper_test (bool verbose) {
         for (const auto &txt : result.txt) {
             std::cout << txt << std::endl;
         }
-    }
+    }*/
 }

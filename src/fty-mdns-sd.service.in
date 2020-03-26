@@ -10,7 +10,10 @@ PartOf=bios-allowed.target
 BindsTo=bios-allowed.target
 Conflicts=bios-shutdown.target
 
-PartOf=bios.target
+# fty-info/fty-mdns-sd should be pre-EULA, so that just-deployed instances
+# are visible on the network for remote (distributed, through central point)
+# commissioning, eventually.
+PartOf=bios-pre-eula.target
 
 [Service]
 Type=simple
@@ -28,4 +31,4 @@ Environment="prefix=@prefix@"
 ExecStart=@prefix@/bin/fty-mdns-sd -c @sysconfdir@/@PACKAGE@/fty-mdns-sd.cfg
 
 [Install]
-WantedBy=bios.target
+WantedBy=bios-pre-eula.target

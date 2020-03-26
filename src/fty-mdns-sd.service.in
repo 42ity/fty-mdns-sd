@@ -2,7 +2,14 @@
 Description=fty-mdns-sd service: make this system discoverable via AVAHI
 After=malamute.service network.target fty-info.service avahi-daemon.service
 Requires=malamute.service network.target fty-info.service avahi-daemon.service
-# Conflicts=shutdown.target
+Conflicts=rescue.target shutdown.target poweroff.target halt.target reboot.target emergency.target
+
+Requisite=bios-allowed.target
+After=bios-allowed.target
+PartOf=bios-allowed.target
+BindsTo=bios-allowed.target
+Conflicts=bios-shutdown.target
+
 PartOf=bios.target
 
 [Service]

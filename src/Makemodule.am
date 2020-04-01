@@ -153,21 +153,6 @@ check-verbose: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top
 	$(LIBTOOL) --mode=execute $(builddir)/src/fty_mdns_sd_selftest -v
 	$(MAKE) check-empty-selftest-rw
 
-check-fty_mdns_sd_server: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute $(builddir)/src/fty_mdns_sd_selftest -t fty_mdns_sd_server
-	$(MAKE) check-empty-selftest-rw
-check-fty_mdns_sd_server-verbose: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute $(builddir)/src/fty_mdns_sd_selftest -v -t fty_mdns_sd_server
-	$(MAKE) check-empty-selftest-rw
-
-check-avahi_wrapper: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute $(builddir)/src/fty_mdns_sd_selftest -t avahi_wrapper
-	$(MAKE) check-empty-selftest-rw
-check-avahi_wrapper-verbose: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute $(builddir)/src/fty_mdns_sd_selftest -v -t avahi_wrapper
-	$(MAKE) check-empty-selftest-rw
-
-
 # Run the selftest binary under valgrind to check for memory leaks
 memcheck: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
 	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
@@ -185,35 +170,6 @@ memcheck-verbose: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(
 		$(builddir)/src/fty_mdns_sd_selftest -v
 	$(MAKE) check-empty-selftest-rw
 
-memcheck-fty_mdns_sd_server: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
-		--leak-check=full --show-reachable=yes --error-exitcode=1 \
-		--suppressions=$(srcdir)/src/.valgrind.supp \
-		$(VALGRIND_OPTIONS) \
-		$(builddir)/src/fty_mdns_sd_selftest -t fty_mdns_sd_server
-	$(MAKE) check-empty-selftest-rw
-memcheck-fty_mdns_sd_server-verbose: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
-		--leak-check=full --show-reachable=yes --error-exitcode=1 \
-		--suppressions=$(srcdir)/src/.valgrind.supp \
-		$(VALGRIND_OPTIONS) \
-		$(builddir)/src/fty_mdns_sd_selftest -v -t fty_mdns_sd_server
-	$(MAKE) check-empty-selftest-rw
-memcheck-avahi_wrapper: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
-		--leak-check=full --show-reachable=yes --error-exitcode=1 \
-		--suppressions=$(srcdir)/src/.valgrind.supp \
-		$(VALGRIND_OPTIONS) \
-		$(builddir)/src/fty_mdns_sd_selftest -t avahi_wrapper
-	$(MAKE) check-empty-selftest-rw
-memcheck-avahi_wrapper-verbose: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute valgrind --tool=memcheck \
-		--leak-check=full --show-reachable=yes --error-exitcode=1 \
-		--suppressions=$(srcdir)/src/.valgrind.supp \
-		$(VALGRIND_OPTIONS) \
-		$(builddir)/src/fty_mdns_sd_selftest -v -t avahi_wrapper
-	$(MAKE) check-empty-selftest-rw
-
 # Run the selftest binary under valgrind to check for performance leaks
 callcheck: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
 	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
@@ -227,27 +183,6 @@ callcheck-verbose: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $
 		$(builddir)/src/fty_mdns_sd_selftest -v
 	$(MAKE) check-empty-selftest-rw
 
-callcheck-fty_mdns_sd_server: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
-		$(VALGRIND_OPTIONS) \
-		$(builddir)/src/fty_mdns_sd_selftest -t fty_mdns_sd_server
-	$(MAKE) check-empty-selftest-rw
-callcheck-fty_mdns_sd_server-verbose: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
-		$(VALGRIND_OPTIONS) \
-		$(builddir)/src/fty_mdns_sd_selftest -v -t fty_mdns_sd_server
-	$(MAKE) check-empty-selftest-rw
-callcheck-avahi_wrapper: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
-		$(VALGRIND_OPTIONS) \
-		$(builddir)/src/fty_mdns_sd_selftest -t avahi_wrapper
-	$(MAKE) check-empty-selftest-rw
-callcheck-avahi_wrapper-verbose: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute valgrind --tool=callgrind \
-		$(VALGRIND_OPTIONS) \
-		$(builddir)/src/fty_mdns_sd_selftest -v -t avahi_wrapper
-	$(MAKE) check-empty-selftest-rw
-
 # Run the selftest binary under gdb for debugging
 debug: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
 	$(LIBTOOL) --mode=execute gdb -q \
@@ -256,24 +191,7 @@ debug: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddi
 
 debug-verbose: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
 	$(LIBTOOL) --mode=execute gdb -q \
-		--args $(builddir)/src/fty_mdns_sd_selftest -v
-	$(MAKE) check-empty-selftest-rw
-
-debug-fty_mdns_sd_server: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute gdb -q \
-		--args $(builddir)/src/fty_mdns_sd_selftest -t fty_mdns_sd_server
-	$(MAKE) check-empty-selftest-rw
-debug-fty_mdns_sd_server-verbose: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute gdb -q \
-		--args $(builddir)/src/fty_mdns_sd_selftest -v -t fty_mdns_sd_server
-	$(MAKE) check-empty-selftest-rw
-debug-avahi_wrapper: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute gdb -q \
-		--args $(builddir)/src/fty_mdns_sd_selftest -t avahi_wrapper
-	$(MAKE) check-empty-selftest-rw
-debug-avahi_wrapper-verbose: src/fty_mdns_sd_selftest $(top_builddir)/$(SELFTEST_DIR_RW) $(top_builddir)/$(SELFTEST_DIR_RO)
-	$(LIBTOOL) --mode=execute gdb -q \
-		--args $(builddir)/src/fty_mdns_sd_selftest -v -t avahi_wrapper
+		$(builddir)/src/fty_mdns_sd_selftest -v
 	$(MAKE) check-empty-selftest-rw
 
 # Run the selftest binary with verbose switch for tracing

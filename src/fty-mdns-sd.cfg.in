@@ -11,11 +11,13 @@ malamute
     address = fty-mdns-sd                           #   Agent mdns-sd address=
 
 scan
-    daemonactive = false
-    stdout = false
-    nobusout = false
+    daemon_active = false
+    auto = true
+    std_out = false
+    no_bus_out = false
     command = START-SCAN
-    topic = SCAN-ANNOUNCE
+    new_scan_topic = SCAN-NEW-ANNOUNCE
+    default_scan_topic = SCAN-ANNOUNCE
     type = _https._tcp
 
 log

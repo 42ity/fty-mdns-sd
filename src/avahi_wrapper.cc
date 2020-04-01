@@ -96,6 +96,53 @@ extern "C" void s_group_callback(AvahiEntryGroup* group, AvahiEntryGroupState st
     }
 }
 
+extern "C" void s_resolve_new_callback(
+    AvahiServiceResolver *r,
+    AvahiIfIndex interface,
+    AvahiProtocol protocol,
+    AvahiResolverEvent event,
+    const char *name,
+    const char *type,
+    const char *domain,
+    const char *host_name,
+    const AvahiAddress *a,
+    uint16_t port,
+    AvahiStringList *txt,
+    AvahiLookupResultFlags flags,
+    void *userdata) {
+    AvahiWrapper *avahiWrapper = reinterpret_cast<AvahiWrapper*>(userdata);
+    if (event == AVAHI_RESOLVER_FOUND) {
+        avahiWrapper->resolveNewCallback(event, AvahiResolvedService(AvahiService(protocol, name, type, domain), a, port, host_name, txt));
+    }
+    else {
+        log_error("Avahi resolve new failed for new service: %s", name);
+    }
+}
+
+extern "C" void s_browse_new_callback(
+    AvahiServiceBrowser *b,
+    AvahiIfIndex interface,
+    AvahiProtocol protocol,
+    AvahiBrowserEvent event,
+    const char *name,
+    const char *type,
+    const char *domain,
+    AvahiLookupResultFlags flags,
+    void *userdata) {
+    AvahiWrapper *avahiWrapper = reinterpret_cast<AvahiWrapper*>(userdata);
+    switch (event) {
+        case AVAHI_BROWSER_FAILURE:
+            log_error("Avahi browse new failed for new service: %s", name);
+            break;
+        case AVAHI_BROWSER_NEW:
+            avahiWrapper->browseNewCallback(event, interface, protocol, AvahiService(protocol, name, type, domain));
+            break;
+        case AVAHI_BROWSER_ALL_FOR_NOW:
+        case AVAHI_BROWSER_CACHE_EXHAUSTED:
+        default:
+            break;
+    }
+}
 
 extern "C" void s_resolve_callback(
     AvahiServiceResolver *r,
@@ -269,9 +316,11 @@ void AvahiWrapper::stop()
         avahi_entry_group_reset( _group );
         avahi_entry_group_free( _group );
     }
+    if (_serviceBrowser) avahi_service_browser_free(_serviceBrowser);
     if (_client) avahi_client_free(_client);
     if (_simplePoll) avahi_simple_poll_free(_simplePoll);
     _group = nullptr;
+    _serviceBrowser = nullptr;
     _client = nullptr;
     _simplePoll = nullptr;
 }
@@ -351,6 +400,11 @@ AvahiEntryGroup* AvahiWrapper::createService(AvahiClient* client, char* serviceN
     return group;
 }
 
+void AvahiWrapper::announce()
+{
+    _group = createService(_client, _serviceName, _serviceDefinition, _txtRecords);
+}
+
 void AvahiWrapper::update()
 {
     if (_group == NULL) {
@@ -373,30 +427,55 @@ void AvahiWrapper::update()
     }
 }
 
+void AvahiWrapper::startBrowseNewServices(std::string type)
+{
+    if (!(_serviceBrowser = avahi_service_browser_new(_client, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, type.c_str(),
+        nullptr, static_cast<AvahiLookupFlags>(0), s_browse_new_callback, this))) {
+        throw std::runtime_error("Couldn't allocate avahi service browser.");
+    }
+}
+
+int AvahiWrapper::waitEvents()
+{
+    int res = avahi_simple_poll_iterate(_simplePoll, TIMEOUT_WAIT_EVENTS);
+    return res;
+}
+
+AvahiResolvedService AvahiWrapper::getLastResolvedNewService()
+{
+    std::lock_guard<std::mutex> lockNewServiceMutex(_newServiceMutex);
+    AvahiResolvedService avahiNewService = _resolvedNewServices.back();
+    _resolvedNewServices.pop_back();
+    return avahiNewService;
+}
+
+void AvahiWrapper::addResolvedNewService(const AvahiResolvedService &avahiNewService)
+{
+    std::lock_guard<std::mutex> lockNewServiceMutex(_newServiceMutex);
+    _resolvedNewServices.insert(_resolvedNewServices.begin(), avahiNewService);
+}
+
 void AvahiWrapper::clientCallback(AvahiClient* client)
 {
     try {
         assert(client);
-        _group = createService(client,_serviceName,_serviceDefinition,_txtRecords);
     }
     catch (std::exception& e) {
         log_error( "onClientRunning exception: %s" , e.what() );
     }
 }
 
-AvahiResolvedServices AvahiWrapper::scanServices(const std::string &type) {
-
+AvahiResolvedServices AvahiWrapper::scanServices(const std::string &type)
+{
     std::lock_guard<std::mutex> lockScanMutex(_scanMutex);
 
     if (!(_scanPoll = avahi_simple_poll_new())) {
         throw std::runtime_error("Couldn't allocate avahi scan poller.");
     }
-
     int error;
     if(!(_scanClient = avahi_client_new(avahi_simple_poll_get(_scanPoll), static_cast<AvahiClientFlags>(0), s_client_scan_callback, this, &error))) {
         throw std::runtime_error(avahi_strerror(error));
     }
-
     if (!(_serviceBrowser = avahi_service_browser_new(_scanClient, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, type.c_str(), nullptr, static_cast<AvahiLookupFlags>(0), s_browse_callback, this))) {
         throw std::runtime_error(avahi_strerror(error));
     }
@@ -417,7 +496,21 @@ AvahiResolvedServices AvahiWrapper::scanServices(const std::string &type) {
     return std::move(_resolvedServices);
 }
 
-void AvahiWrapper::resolveCallback(AvahiResolverEvent event, const AvahiResolvedService &service) {
+void AvahiWrapper::resolveNewCallback(AvahiResolverEvent event, const AvahiResolvedService &service)
+{
+    addResolvedNewService(service);
+}
+
+void AvahiWrapper::browseNewCallback(AvahiBrowserEvent event, AvahiIfIndex interface, AvahiProtocol protocol, const AvahiService &service)
+{
+    if (!(avahi_service_resolver_new(_client, interface, service.protocol, service.name.c_str(), service.type.c_str(), service.domain.c_str(),
+        AVAHI_PROTO_UNSPEC, static_cast<AvahiLookupFlags>(0), s_resolve_new_callback, this))) {
+        log_error("Avahi browse failed for new service: %s", service.name.c_str());
+    }
+}
+
+void AvahiWrapper::resolveCallback(AvahiResolverEvent event, const AvahiResolvedService &service)
+{
     _resolvedServices.push_back(service);
     _servicesToResolve--;
 
@@ -426,7 +519,8 @@ void AvahiWrapper::resolveCallback(AvahiResolverEvent event, const AvahiResolved
     }
 }
 
-void AvahiWrapper::resolveFailureCallback(AvahiResolverEvent event) {
+void AvahiWrapper::resolveFailureCallback(AvahiResolverEvent event)
+{
     _servicesToResolve--;
 
     if (isFinished()) {
@@ -434,7 +528,8 @@ void AvahiWrapper::resolveFailureCallback(AvahiResolverEvent event) {
     }
 }
 
-void AvahiWrapper::browseCallback(AvahiBrowserEvent event, AvahiIfIndex interface, AvahiProtocol protocol, const AvahiService &service) {
+void AvahiWrapper::browseCallback(AvahiBrowserEvent event, AvahiIfIndex interface, AvahiProtocol protocol, const AvahiService &service)
+{
     if (!(avahi_service_resolver_new(_scanClient, interface, service.protocol, service.name.c_str(), service.type.c_str(), service.domain.c_str(),
         AVAHI_PROTO_UNSPEC, static_cast<AvahiLookupFlags>(0), s_resolve_callback, this))) {
         _failed = true;
@@ -445,19 +540,22 @@ void AvahiWrapper::browseCallback(AvahiBrowserEvent event, AvahiIfIndex interfac
     }
 }
 
-void AvahiWrapper::browseDoneCallback(AvahiBrowserEvent event) {
+void AvahiWrapper::browseDoneCallback(AvahiBrowserEvent event)
+{
     _doneBrowsing = true;
     if (isFinished()) {
         avahi_simple_poll_quit(_scanPoll);
     }
 }
 
-void AvahiWrapper::browseFailureCallback(AvahiBrowserEvent event) {
+void AvahiWrapper::browseFailureCallback(AvahiBrowserEvent event)
+{
     _failed = true;
     avahi_simple_poll_quit(_scanPoll);
 }
 
-void AvahiWrapper::scanClientCallback(AvahiClientState event) {
+void AvahiWrapper::scanClientCallback(AvahiClientState event)
+{
     if (event == AVAHI_CLIENT_FAILURE) {
         _failed = true;
         avahi_simple_poll_quit(_simplePoll);
@@ -467,7 +565,8 @@ void AvahiWrapper::scanClientCallback(AvahiClientState event) {
 //  --------------------------------------------------------------------------
 //  Self test of this class
 
-void avahi_wrapper_test (bool verbose) {
+void avahi_wrapper_test (bool verbose)
+{
     printf ("Avahi wrapper test\n");
     /*AvahiWrapper wrapper;
     auto results = wrapper.scanServices("_https._tcp");

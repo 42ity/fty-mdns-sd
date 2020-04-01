@@ -39,7 +39,9 @@ usage(){
     puts ("  -c|--config         path to config file");
     puts ("  -e|--endpoint       malamute endpoint [ipc://@/malamute]");
     puts ("  -d|--daemonscan     activate scan daemon");
+    puts ("  -a|--autoscan       activate automatic scan");
     puts ("  -s|--scan           scan devices and quit");
+    puts ("  -t|--topic          topic name for scan devices result");
     puts ("  -o|--stdout         display scan devices result on standard output");
     puts ("  -n|--nopublishbus   not publish scan devices result on malamute bus");
 }
@@ -82,10 +84,12 @@ main (int argc, char *argv [])
 
     bool scan_only = false;
     bool scan_daemon_active = false;
+    bool scan_auto = false;
     bool scan_std_out = false;
     bool scan_no_publish_bus = false;
     std::string scan_command(DEFAULT_SCAN_COMMAND);
-    std::string scan_topic(DEFAULT_SCAN_ANNOUNCE);
+    std::string scan_default_topic(DEFAULT_SCAN_TOPIC);
+    std::string scan_new_topic(DEFAULT_NEW_SCAN_TOPIC);
     std::string scan_type(DEFAULT_SCAN_TYPE);
 
     ManageFtyLog::setInstanceFtylog(actor_name);
@@ -114,8 +118,15 @@ main (int argc, char *argv [])
         else if (streq (argv [argn], "--scan") || streq (argv [argn], "-s")) {
             scan_only = true;
         }
+        else if (streq (argv [argn], "--topic") || streq (argv [argn], "-t")) {
+            if (param) scan_default_topic = param;
+            ++argn;
+        }
         else if (streq (argv [argn], "--daemonscan") || streq (argv [argn], "-d")) {
             scan_daemon_active = true;
+        }
+        else if (streq (argv [argn], "--autoscan") || streq (argv [argn], "-a")) {
+            scan_auto = true;
         }
         else if (streq (argv [argn], "--stdout") || streq (argv [argn], "-o")) {
             scan_std_out = true;
@@ -142,10 +153,12 @@ main (int argc, char *argv [])
         actor_name = s_get(config, "malamute/address", actor_name);
         fty_info_command = s_get(config, "fty-info/command", fty_info_command);
         scan_daemon_active = s_get(config, "scan/daemonactive", "false") == std::string("true");
+        scan_auto = s_get(config, "scan/auto", "false") == std::string("true");
         scan_std_out = s_get(config, "scan/stdout", "true") == std::string("true");
         scan_no_publish_bus = s_get(config, "scan/nobusout", "false") == std::string("true");
         scan_command = s_get(config, "scan/command", scan_command);
-        scan_topic = s_get(config, "scan/topic", scan_topic);
+        scan_default_topic = s_get(config, "scan/default_scan_topic", scan_default_topic);
+        scan_new_topic = s_get(config, "scan/new_scan_topic", scan_new_topic);
         scan_type = s_get(config, "scan/type", scan_type);
         log_config = s_get(config, "log/config", DEFAULT_LOG_CONFIG);
     }
@@ -164,18 +177,31 @@ main (int argc, char *argv [])
         zstr_sendx(server, "CONSUMER", "ANNOUNCE", ".*", NULL);
         log_info("scan_daemon_active=%u", scan_daemon_active);
         if (scan_daemon_active) {
-            zstr_sendx(server, "PRODUCER", scan_topic.c_str(), NULL);
-            zstr_sendx(server, "SCAN-PARAMETERS", scan_command.c_str(), scan_type.c_str(),
-                scan_std_out ? "true" : "false", scan_no_publish_bus ? "true" : "false", NULL);
+            zstr_sendx(server, "PRODUCER-SCAN", scan_default_topic.c_str(), NULL);
+            if (scan_auto) {
+                zstr_sendx(server, "PRODUCER-NEW-SCAN", scan_new_topic.c_str(), NULL);
+            }
+            zstr_sendx(server, "SCAN-PARAMETERS",
+                scan_command.c_str(),
+                scan_type.c_str(),
+                scan_auto ? "true" : "false",
+                scan_std_out ? "true" : "false",
+                scan_no_publish_bus ? "true" : "false", NULL);
         }
         ////do first announcement
         zclock_sleep(5000);
         zstr_sendx(server, "DO-DEFAULT-ANNOUNCE", fty_info_command.c_str(), NULL);
     }
     else {
-        if (!scan_no_publish_bus) zstr_sendx(server, "PRODUCER", scan_topic.c_str(), NULL);
-        zstr_sendx(server, "SCAN-PARAMETERS", scan_command.c_str(), scan_type.c_str(),
-            scan_std_out ? "true" : "false", scan_no_publish_bus ? "true" : "false", NULL);
+        if (!scan_no_publish_bus) {
+            zstr_sendx(server, "PRODUCER-SCAN", scan_default_topic.c_str(), NULL);
+        }
+        zstr_sendx(server, "SCAN-PARAMETERS",
+            scan_command.c_str(),
+            scan_type.c_str(),
+            scan_auto ? "true" : "false",
+            scan_std_out ? "true" : "false",
+            scan_no_publish_bus ? "true" : "false", NULL);
         zstr_sendx(server, "DO-SCAN", NULL);
     }
 

@@ -50,6 +50,8 @@
 #define SERVICE_SUBTYPE_KEY   "subType"
 #define SERVICE_PORT_KEY      "port"
 
+#define TIMEOUT_WAIT_EVENTS   1000
+
 typedef std::map<std::string, std::string> map_string_t;
 
 void avahi_wrapper_test (bool verbose);
@@ -91,6 +93,8 @@ protected:
     AvahiSimplePoll* _simplePoll;
     AvahiClient* _client;
     AvahiEntryGroup* _group;
+    AvahiResolvedServices _resolvedNewServices;
+    std::mutex _newServiceMutex;
 
     AvahiSimplePoll* _scanPoll;
     AvahiClient* _scanClient;
@@ -131,10 +135,18 @@ public:
     int start();
     void stop();
     void update();
-
+    void announce();
+    void startBrowseNewServices(std::string type);
     AvahiResolvedServices scanServices(const std::string &type);
+    int waitEvents();
+
+    int getNumberResolvedNewService() { return _resolvedNewServices.size(); };
+    AvahiResolvedService getLastResolvedNewService();
+    void addResolvedNewService(const AvahiResolvedService &avahiNewService);
 
     void clientCallback(AvahiClient* client);
+    void resolveNewCallback(AvahiResolverEvent event, const AvahiResolvedService &service);
+    void browseNewCallback(AvahiBrowserEvent event, AvahiIfIndex interface, AvahiProtocol protocol, const AvahiService &service);
     void resolveCallback(AvahiResolverEvent event, const AvahiResolvedService &service);
     void resolveFailureCallback(AvahiResolverEvent event);
     void browseCallback(AvahiBrowserEvent event, AvahiIfIndex interface, AvahiProtocol protocol, const AvahiService &service);

@@ -68,6 +68,11 @@
         repository = "https://github.com/42ity/fty-common-logging.git"
         test = "fty_common_logging_selftest" />
 
+    <!--use project = "fty-common" libname = "libfty_common" header = "fty_common.h"
+        repository = "https://github.com/42ity/fty-common.git"
+        test = "fty_common_selftest" >
+    </use-->
+
     <use project = "fty-proto" libname = "libfty_proto" header = "ftyproto.h" prefix = "fty_proto"
         min_major = "1" min_minor = "0" min_patch = "0"
         repository = "https://github.com/42ity/fty-proto.git"

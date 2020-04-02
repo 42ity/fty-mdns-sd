@@ -91,6 +91,10 @@ main (int argc, char *argv [])
     std::string scan_default_topic(DEFAULT_SCAN_TOPIC);
     std::string scan_new_topic(DEFAULT_NEW_SCAN_TOPIC);
     std::string scan_type(DEFAULT_SCAN_TYPE);
+    std::string scan_sub_type(DEFAULT_SCAN_SUB_TYPE);
+    std::string scan_manufacturer(DEFAULT_SCAN_MANUFACTURER);
+    std::string scan_filter_key;
+    std::string scan_filter_value;
 
     ManageFtyLog::setInstanceFtylog(actor_name);
 
@@ -152,14 +156,18 @@ main (int argc, char *argv [])
         endpoint = s_get(config, "malamute/endpoint", endpoint);
         actor_name = s_get(config, "malamute/address", actor_name);
         fty_info_command = s_get(config, "fty-info/command", fty_info_command);
-        scan_daemon_active = s_get(config, "scan/daemonactive", "false") == std::string("true");
+        scan_daemon_active = s_get(config, "scan/daemon_active", "false") == std::string("true");
         scan_auto = s_get(config, "scan/auto", "false") == std::string("true");
-        scan_std_out = s_get(config, "scan/stdout", "true") == std::string("true");
-        scan_no_publish_bus = s_get(config, "scan/nobusout", "false") == std::string("true");
+        scan_std_out = s_get(config, "scan/std_out", "true") == std::string("true");
+        scan_no_publish_bus = s_get(config, "scan/no_bus_out", "false") == std::string("true");
         scan_command = s_get(config, "scan/command", scan_command);
         scan_default_topic = s_get(config, "scan/default_scan_topic", scan_default_topic);
         scan_new_topic = s_get(config, "scan/new_scan_topic", scan_new_topic);
         scan_type = s_get(config, "scan/type", scan_type);
+        scan_sub_type = s_get(config, "scan/sub_type", scan_sub_type);
+        scan_manufacturer = s_get(config, "scan/manufacturer", scan_manufacturer);
+        scan_filter_key = s_get(config, "scan/filter_key", scan_filter_key);
+        scan_filter_value = s_get(config, "scan/filter_value", scan_filter_value);
         log_config = s_get(config, "log/config", DEFAULT_LOG_CONFIG);
     }
     else {
@@ -184,6 +192,10 @@ main (int argc, char *argv [])
             zstr_sendx(server, "SCAN-PARAMETERS",
                 scan_command.c_str(),
                 scan_type.c_str(),
+                scan_sub_type.c_str(),
+                scan_manufacturer.c_str(),
+                scan_filter_key.c_str(),
+                scan_filter_value.c_str(),
                 scan_auto ? "true" : "false",
                 scan_std_out ? "true" : "false",
                 scan_no_publish_bus ? "true" : "false", NULL);
@@ -199,6 +211,10 @@ main (int argc, char *argv [])
         zstr_sendx(server, "SCAN-PARAMETERS",
             scan_command.c_str(),
             scan_type.c_str(),
+            scan_sub_type.c_str(),
+            scan_manufacturer.c_str(),
+            scan_filter_key.c_str(),
+            scan_filter_value.c_str(),
             scan_auto ? "true" : "false",
             scan_std_out ? "true" : "false",
             scan_no_publish_bus ? "true" : "false", NULL);

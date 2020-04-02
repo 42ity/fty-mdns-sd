@@ -73,6 +73,17 @@ struct AvahiResolvedService {
     std::vector<std::string> txt;
 };
 
+struct AvahiScanFilter {
+    AvahiScanFilter(const std::string &s, const std::string &m, const std::string &k, const std::string &v);
+    AvahiScanFilter() = default;
+
+    std::string sub_type;
+    //std::vector<std::string> sub_type;  // TBD
+    std::string manufacturer;
+    std::string filter_key;
+    std::string filter_value;
+    //std::map<std::string, std::string> filter_map; // TBD
+};
 
 using AvahiResolvedServices = std::vector<AvahiResolvedService>;
 
@@ -99,6 +110,7 @@ protected:
     AvahiSimplePoll* _scanPoll;
     AvahiClient* _scanClient;
     AvahiServiceBrowser* _serviceBrowser;
+    AvahiScanFilter _scanFilter;
     int _servicesToResolve;
     bool _doneBrowsing;
     bool _failed;
@@ -143,6 +155,9 @@ public:
     int getNumberResolvedNewService() { return _resolvedNewServices.size(); };
     AvahiResolvedService getLastResolvedNewService();
     void addResolvedNewService(const AvahiResolvedService &avahiNewService);
+
+    void setScanFilter(const AvahiScanFilter &scanFilter);
+    bool isFilterService(const std::vector<std::string> &key_value_service);
 
     void clientCallback(AvahiClient* client);
     void resolveNewCallback(AvahiResolverEvent event, const AvahiResolvedService &service);

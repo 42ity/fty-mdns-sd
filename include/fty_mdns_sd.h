@@ -26,9 +26,11 @@
 #include "fty_mdns_sd_library.h"
 
 //  Add your own public definitions here, if you need them
-#define DEFAULT_SCAN_COMMAND   "START-SCAN"
-#define DEFAULT_SCAN_TOPIC     "SCAN-ANNOUNCE"
-#define DEFAULT_NEW_SCAN_TOPIC "SCAN-NEW-ANNOUNCE"
-#define DEFAULT_SCAN_TYPE      "_https._tcp"
+#define DEFAULT_SCAN_COMMAND      "START-SCAN"
+#define DEFAULT_SCAN_TOPIC        "SCAN-ANNOUNCE"
+#define DEFAULT_NEW_SCAN_TOPIC    "SCAN-NEW-ANNOUNCE"
+#define DEFAULT_SCAN_TYPE         "_https._tcp"
+#define DEFAULT_SCAN_SUB_TYPE     "ups,pdu,ats"
+#define DEFAULT_SCAN_MANUFACTURER  "EATON"
 
 #endif

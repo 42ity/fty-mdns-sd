@@ -562,6 +562,12 @@ s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
     else if (streq(command, "SCAN-PARAMETERS")) {
         char *scan_command = zmsg_popstr(message);
         char *scan_type = zmsg_popstr(message);
+        char *scan_sub_type = zmsg_popstr(message);
+        char *scan_manufacturer = zmsg_popstr(message);
+        char *scan_filter_key = zmsg_popstr(message);
+        char *scan_filter_value = zmsg_popstr(message);
+        AvahiScanFilter scanFilter(scan_sub_type, scan_manufacturer, scan_filter_key, scan_filter_value);
+        self->service->setScanFilter(scanFilter);
         self->scan_auto = streq(zmsg_popstr(message), "true");
         self->scan_std_out = streq(zmsg_popstr(message), "true");
         self->scan_no_publish_bus = streq(zmsg_popstr(message), "true");
@@ -569,6 +575,10 @@ s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         s_set_scan_type(self, scan_type);
         zstr_free(&scan_command);
         zstr_free(&scan_type);
+        zstr_free(&scan_sub_type);
+        zstr_free(&scan_manufacturer);
+        zstr_free(&scan_filter_key);
+        zstr_free(&scan_filter_value);
         log_trace("scan_auto=%u", self->scan_auto);
         if (self->scan_auto && self->service) {
             self->service->startBrowseNewServices(self->scan_type);

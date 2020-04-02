@@ -19,6 +19,10 @@ scan
     new_scan_topic = SCAN-NEW-ANNOUNCE
     default_scan_topic = SCAN-ANNOUNCE
     type = _https._tcp
+    sub_type = ups,pdu,ats
+    manufacturer =
+    filter_key =
+    filter_value =
 
 log
     config = /etc/fty/ftylog.cfg

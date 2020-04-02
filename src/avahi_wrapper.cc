@@ -198,6 +198,29 @@ extern "C" void s_client_scan_callback(AvahiClient *client, AvahiClientState sta
     avahiWrapper->scanClientCallback(state);
 }
 
+// TBD: To put in a seperate file
+std::string str_tolower(const std::string s) {
+    std::string res(s);
+    std::transform(s.begin(), s.end(), res.begin(),
+                   [](unsigned char c){ return std::tolower(c); }
+                  );
+    return res;
+}
+
+std::vector<std::string> str_split(const std::string str, char sep) {
+    std::vector<std::string> res;
+    int start = 0, end;
+    while ((end = str.find(sep, start)) != std::string::npos) {
+        res.push_back(str.substr(start, end - start));
+        start = end + 1;
+        if (start > str.size()) {
+            start = str.size();
+        }
+    }
+    res.push_back(str.substr(start));
+    return res;
+}
+
 AvahiResolvedService::AvahiResolvedService(const AvahiService &s, const AvahiAddress *a, uint16_t p, const std::string &h, AvahiStringList *t) :
     service(s), address(), port(p), hostname(h) {
     char buffer[AVAHI_ADDRESS_STR_MAX];
@@ -213,6 +236,11 @@ AvahiService::AvahiService(AvahiProtocol p, const std::string &n, const std::str
     protocol(p), name(n), type(t), domain(d) {
 }
 
+AvahiScanFilter::AvahiScanFilter(const std::string &s, const std::string &m, const std::string &k, const std::string &v) :
+    sub_type(s), manufacturer(m), filter_key(k), filter_value(v)
+{
+}
+
 AvahiWrapper::AvahiWrapper() :
     _serviceName(nullptr),
     _txtRecords(nullptr),
@@ -222,6 +250,7 @@ AvahiWrapper::AvahiWrapper() :
     _scanPoll(nullptr),
     _scanClient(nullptr),
     _serviceBrowser(nullptr),
+    _scanFilter(),
     _servicesToResolve(0),
     _failed(false)
 {
@@ -451,8 +480,79 @@ AvahiResolvedService AvahiWrapper::getLastResolvedNewService()
 
 void AvahiWrapper::addResolvedNewService(const AvahiResolvedService &avahiNewService)
 {
-    std::lock_guard<std::mutex> lockNewServiceMutex(_newServiceMutex);
-    _resolvedNewServices.insert(_resolvedNewServices.begin(), avahiNewService);
+    // Test if service is a not filter
+    if (!isFilterService(avahiNewService.txt)) {
+        std::lock_guard<std::mutex> lockNewServiceMutex(_newServiceMutex);
+        _resolvedNewServices.insert(_resolvedNewServices.begin(), avahiNewService);
+    }
+    else {
+        log_info("Filter service (%s, %s) during scan", avahiNewService.service.name.c_str(), avahiNewService.hostname.c_str());
+    }
+}
+
+void AvahiWrapper::setScanFilter(const AvahiScanFilter &scanFilter) {
+    _scanFilter.sub_type = scanFilter.sub_type;
+    _scanFilter.manufacturer = scanFilter.manufacturer;
+    _scanFilter.filter_key = scanFilter.filter_key;
+    _scanFilter.filter_value = scanFilter.filter_value;
+}
+
+bool AvahiWrapper::isFilterService(const std::vector<std::string> &key_value_service)
+{
+    bool res = false;
+    for (const auto& filter : std::vector<std::pair<std::string, std::function<bool(const std::string&)>>> ({
+        // Sub type filter treatment
+        { "type", [this](std::string value) -> bool
+            {
+                if (this->_scanFilter.sub_type.empty()) {
+                    return false;
+                }
+                bool r = true;
+                std::vector<std::string> sub_types = str_split(this->_scanFilter.sub_type, ',');
+                for (const auto &sub_type : sub_types) {
+                    if (str_tolower(value) == str_tolower(sub_type)) {
+                        r = false;
+                        break;
+                    }
+                }
+                return r;
+            }
+        },
+        // Manufacturer filter treatment
+        { "manufacturer", [this](std::string value) -> bool
+            {
+                return (this->_scanFilter.manufacturer.empty() || str_tolower(value) == str_tolower(this->_scanFilter.manufacturer)) ? false : true;
+            }
+        },
+        // Specific key/value filter treatment
+        { this->_scanFilter.filter_key, [this](std::string value) -> bool
+            {
+                return (this->_scanFilter.filter_value.empty() || value == this->_scanFilter.filter_value) ? false : true;
+            }
+        }
+    }))
+    {
+        if (!filter.first.empty()) {
+            bool key_find = false;
+            for (const auto &key_value_txt : key_value_service) {
+                std::vector<std::string> key_value = str_split(key_value_txt, '=');
+                if (key_value.size() > 1) {
+                    std::string key = key_value[0];
+                    std::string value = key_value[1];
+                    if (filter.first == key) {
+                        key_find = true;
+                        res = filter.second(value);
+                        break;
+                    }
+                }
+            }
+            if (!key_find) res = true;
+            if (res) {
+                break;
+            }
+        }
+    }
+    return res;
 }
 
 void AvahiWrapper::clientCallback(AvahiClient* client)
@@ -511,7 +611,13 @@ void AvahiWrapper::browseNewCallback(AvahiBrowserEvent event, AvahiIfIndex inter
 
 void AvahiWrapper::resolveCallback(AvahiResolverEvent event, const AvahiResolvedService &service)
 {
-    _resolvedServices.push_back(service);
+    // Test if service is a not filter
+    if (!isFilterService(service.txt)) {
+        _resolvedServices.push_back(service);
+    }
+    else {
+        log_info("Filter service (%s, %s) during scan", service.service.name.c_str(), service.hostname.c_str());
+    }
     _servicesToResolve--;
 
     if (isFinished()) {
@@ -568,17 +674,84 @@ void AvahiWrapper::scanClientCallback(AvahiClientState event)
 void avahi_wrapper_test (bool verbose)
 {
     printf ("Avahi wrapper test\n");
-    /*AvahiWrapper wrapper;
-    auto results = wrapper.scanServices("_https._tcp");
 
-    for (const auto &result : results) {
-        std::cout << std::string(30, '*') << std::endl;
-        std::cout << "service.hostname=" << result.hostname << std::endl;
-        std::cout << "service.name=" << result.service.name << std::endl;
-        std::cout << "service.address=" << result.address << std::endl;
-        std::cout << "service.port=" << result.port << std::endl;
-        for (const auto &txt : result.txt) {
-            std::cout << txt << std::endl;
+    // String test
+    {
+        assert(str_tolower("") == "");
+        assert(str_tolower("AAAA") == "aaaa");
+
+        std::vector<std::string> res;
+        res = str_split("", ',');
+        assert(res.size() == 1);
+        assert(res[0] == "");
+
+        res = str_split("key", '=');
+        assert(res.size() == 1);
+        assert(res[0] == "key");
+
+        res = str_split("key=", '=');
+        assert(res.size() == 2);
+        assert(res[0] == "key");
+        assert(res[1] == "");
+
+        res = str_split("aaa,bbb,ccc", ',');
+        assert(res.size() == 3);
+        assert(res[0] == "aaa");
+        assert(res[1] == "bbb");
+        assert(res[2] == "ccc");
+    }
+
+    // AvahiScanFilter wrapper test
+    {
+        AvahiWrapper avahiWrapper;
+        const auto &configs = std::vector<AvahiScanFilter> {
+            AvahiScanFilter("", "", "", ""),
+            AvahiScanFilter("ups", "", "", ""),
+            AvahiScanFilter("ups,pdu", "", "", ""),
+            AvahiScanFilter("ups,pdu", "EATON", "", ""),
+            AvahiScanFilter("ups,pdu", "EATON", "key", ""),
+            AvahiScanFilter("ups,pdu", "EATON", "key", "value")
+        };
+
+        const auto &expectedResults = std::vector<std::pair<std::vector<std::string>, std::array<bool, 6>>> {
+            { { "type=ups", "manufacturer=EATON", "key=value" },
+              { false, false, false, false, false, false}
+            },
+            { { "type=ops", "manufacturer=EATON", "key=value" },
+              { false, true, true, true, true, true}
+            },
+            { { "type=ups", "manufacturer=OTHER", "key=value" },
+              { false, false, false, true, true, true}
+            },
+            { { "type=ups", "manufacturer=EATON", "key=other" },
+              { false, false, false, false, false, true}
+            }
+        };
+
+        for (size_t i = 0; i < expectedResults.size(); i++) {
+            for (size_t j = 0; j < configs.size(); j++) {
+                avahiWrapper.setScanFilter(configs[j]);
+                std::cout << "Test " << i << "/" << j << std::endl;
+                assert(avahiWrapper.isFilterService(expectedResults[i].first) == expectedResults[i].second[j]);
+            }
         }
-    }*/
+    }
+
+#if 0
+    // AvahiWrapper wrapper test
+    {
+        auto results = wrapper.scanServices("_https._tcp");
+        for (const auto &result : results) {
+            std::cout << std::string(30, '*') << std::endl;
+            std::cout << "service.hostname=" << result.hostname << std::endl;
+            std::cout << "service.name=" << result.service.name << std::endl;
+            std::cout << "service.address=" << result.address << std::endl;
+            std::cout << "service.port=" << result.port << std::endl;
+            for (const auto &txt : result.txt) {
+                std::cout << txt << std::endl;
+            }
+        }
+    }
+#endif
+
 }

@@ -199,17 +199,17 @@ extern "C" void s_client_scan_callback(AvahiClient *client, AvahiClientState sta
 }
 
 // TBD: To put in a seperate file
-std::string str_tolower(const std::string s) {
+std::string str_tolower(const std::string &s) {
     std::string res(s);
-    std::transform(s.begin(), s.end(), res.begin(),
+    std::transform(res.begin(), res.end(), res.begin(),
                    [](unsigned char c){ return std::tolower(c); }
                   );
     return res;
 }
 
-std::vector<std::string> str_split(const std::string str, char sep) {
+std::vector<std::string> str_split(const std::string &str, char sep) {
     std::vector<std::string> res;
-    int start = 0, end;
+    uint start = 0, end;
     while ((end = str.find(sep, start)) != std::string::npos) {
         res.push_back(str.substr(start, end - start));
         start = end + 1;

@@ -209,7 +209,7 @@ std::string str_tolower(const std::string &s) {
 
 std::vector<std::string> str_split(const std::string &str, char sep) {
     std::vector<std::string> res;
-    uint start = 0, end;
+    std::string::size_type start = 0, end;
     while ((end = str.find(sep, start)) != std::string::npos) {
         res.push_back(str.substr(start, end - start));
         start = end + 1;

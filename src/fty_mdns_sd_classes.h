@@ -37,12 +37,17 @@
 typedef struct _avahi_wrapper_t avahi_wrapper_t;
 #define AVAHI_WRAPPER_T_DEFINED
 #endif
+#ifndef FTY_MDNS_SD_MAPPING_T_DEFINED
+typedef struct _fty_mdns_sd_mapping_t fty_mdns_sd_mapping_t;
+#define FTY_MDNS_SD_MAPPING_T_DEFINED
+#endif
 
 //  Extra headers
 
 //  Internal API
 
 #include "avahi_wrapper.h"
+#include "fty_mdns_sd_mapping.h"
 
 //  *** To avoid double-definitions, only define if building without draft ***
 #ifndef FTY_MDNS_SD_BUILD_DRAFT_API
@@ -51,6 +56,11 @@ typedef struct _avahi_wrapper_t avahi_wrapper_t;
 //  Self test of this class.
 FTY_MDNS_SD_PRIVATE void
     avahi_wrapper_test (bool verbose);
+
+//  *** Draft method, defined for internal use only ***
+//  Self test of this class.
+FTY_MDNS_SD_PRIVATE void
+    fty_mdns_sd_mapping_test (bool verbose);
 
 //  Self test for private classes
 FTY_MDNS_SD_PRIVATE void

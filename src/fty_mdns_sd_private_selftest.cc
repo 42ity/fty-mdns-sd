@@ -40,6 +40,8 @@ fty_mdns_sd_private_selftest (bool verbose, const char *subtest)
 // Tests for stable private classes:
     if (streq (subtest, "$ALL") || streq (subtest, "avahi_wrapper_test"))
         avahi_wrapper_test (verbose);
+    if (streq (subtest, "$ALL") || streq (subtest, "fty_mdns_sd_mapping_test"))
+        fty_mdns_sd_mapping_test (verbose);
 }
 /*
 ################################################################################

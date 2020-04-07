@@ -2,5 +2,5 @@
    fty-mdns-sd -> libzmq;
    fty-mdns-sd -> czmq;
    fty-mdns-sd -> malamute;
+   fty-mdns-sd -> cxxtools;
    fty-mdns-sd -> fty-common-logging;
-   fty-mdns-sd -> fty-proto;

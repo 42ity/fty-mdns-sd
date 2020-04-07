@@ -205,6 +205,7 @@ main (int argc, char *argv [])
         zstr_sendx(server, "DO-DEFAULT-ANNOUNCE", fty_info_command.c_str(), NULL);
     }
     else {
+        log_info ("scan_only=%u", scan_only);
         if (!scan_no_publish_bus) {
             zstr_sendx(server, "PRODUCER-SCAN", scan_default_topic.c_str(), NULL);
         }

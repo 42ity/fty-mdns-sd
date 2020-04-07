@@ -14,6 +14,7 @@ pkgconfig_DATA = src/libfty_mdns_sd.pc
 
 src_libfty_mdns_sd_la_SOURCES = \
     src/avahi_wrapper.cc \
+    src/fty_mdns_sd_mapping.cc \
     src/platform.h
 
 if ENABLE_DRAFTS

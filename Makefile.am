@@ -16,13 +16,13 @@ AM_CPPFLAGS = \
     ${libzmq_CFLAGS} \
     ${czmq_CFLAGS} \
     ${malamute_CFLAGS} \
+    ${cxxtools_CFLAGS} \
     ${avahi_client_CFLAGS} \
     ${fty_common_logging_CFLAGS} \
-    ${fty_proto_CFLAGS} \
     -D__STDC_FORMAT_MACROS \
     -I$(srcdir)/include
 
-project_libs = ${libsodium_LIBS} ${libzmq_LIBS} ${czmq_LIBS} ${malamute_LIBS} ${avahi_client_LIBS} ${fty_common_logging_LIBS} ${fty_proto_LIBS}
+project_libs = ${libsodium_LIBS} ${libzmq_LIBS} ${czmq_LIBS} ${malamute_LIBS} ${cxxtools_LIBS} ${avahi_client_LIBS} ${fty_common_logging_LIBS}
 
 SUBDIRS = doc
 SUBDIRS += include
@@ -47,9 +47,9 @@ EXTRA_DIST += \
     Findlibzmq.cmake \
     Findczmq.cmake \
     Findmalamute.cmake \
+    Findcxxtools.cmake \
     Findavahi_client.cmake \
     Findfty_common_logging.cmake \
-    Findfty_proto.cmake \
     builds/cmake/Modules/ClangFormat.cmake \
     builds/cmake/clang-format-check.sh.in \
     builds/cmake/Config.cmake.in \
@@ -58,6 +58,7 @@ endif
 
 EXTRA_DIST += \
     src/avahi_wrapper.h \
+    src/fty_mdns_sd_mapping.h \
     README.md \
     src/fty_mdns_sd_classes.h
 

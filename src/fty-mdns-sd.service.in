@@ -1,12 +1,19 @@
-# This is a skeleton created by zproject.
-# You can add hand-written code here.
-
 [Unit]
-Description=fty-mdns-sd service
+Description=fty-mdns-sd service: make this system discoverable via AVAHI
 After=malamute.service network.target fty-info.service avahi-daemon.service
 Requires=malamute.service network.target fty-info.service avahi-daemon.service
-# Conflicts=shutdown.target
-PartOf=bios.target
+Conflicts=rescue.target shutdown.target poweroff.target halt.target reboot.target emergency.target
+
+Requisite=bios-allowed.target
+After=bios-allowed.target
+PartOf=bios-allowed.target
+BindsTo=bios-allowed.target
+Conflicts=bios-shutdown.target
+
+# fty-info/fty-mdns-sd should be pre-EULA, so that just-deployed instances
+# are visible on the network for remote (distributed, through central point)
+# commissioning, eventually.
+PartOf=bios-pre-eula.target
 
 [Service]
 Type=simple
@@ -24,4 +31,4 @@ Environment="prefix=@prefix@"
 ExecStart=@prefix@/bin/fty-mdns-sd -c @sysconfdir@/@PACKAGE@/fty-mdns-sd.cfg
 
 [Install]
-WantedBy=bios.target
+WantedBy=bios-pre-eula.target

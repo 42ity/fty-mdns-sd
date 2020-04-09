@@ -23,13 +23,12 @@
     fty-mdns-sd - to manage network announcement(mDNS) and discovery (DNS-SD)
 @discuss
 @end
-@author Gerald Guillaume <GeraldGuillaume@eaton.com>
 */
 
 #include "fty_mdns_sd_classes.h"
-#include "avahi_wrapper.h"
 
-#define DEFAULT_LOG_CONFIG "/etc/fty/ftylog.cfg"
+#include <chrono>
+#include <thread>
 
 void
 usage(){
@@ -44,6 +43,25 @@ usage(){
     puts ("  -t|--topic          topic name for scan devices result");
     puts ("  -o|--stdout         display scan devices result on standard output");
     puts ("  -n|--nopublishbus   not publish scan devices result on malamute bus");
+}
+
+volatile bool g_exit = false;
+std::condition_variable g_cv;
+std::mutex g_mutex;
+
+void sigHandler(int)
+{
+    g_exit = true;
+    g_cv.notify_one();
+}
+
+void setSignalHandler()
+{
+    struct sigaction sigIntHandler;
+    sigIntHandler.sa_handler = sigHandler;
+    sigemptyset(&sigIntHandler.sa_mask);
+    sigIntHandler.sa_flags = 0;
+    sigaction(SIGINT, &sigIntHandler, nullptr);
 }
 
 std::string
@@ -65,173 +83,173 @@ s_get (zconfig_t *config, const char *key, const char *dfl) {
     return std::string(value);
 }
 
-
 int
 main (int argc, char *argv [])
 {
-    std::string config_file;
-    std::string log_config;
-    zconfig_t *config = NULL;
+    using Arguments = std::map<std::string, std::string>;
 
-    bool verbose = false;
-    int argn;
+    try {
+        std::string configFile;
+        std::string logConfig;
+        zconfig_t *config = NULL;
 
-    log_info ("fty_mdns_sd - started");
+        bool verbose = false;
+        int argn;
 
-    std::string actor_name("fty-mdns-sd");
-    std::string endpoint("ipc://@/malamute");
-    std::string fty_info_command("INFO");
+        log_info ("fty_mdns_sd - started");
 
-    bool scan_only = false;
-    bool scan_daemon_active = false;
-    bool scan_auto = false;
-    bool scan_std_out = false;
-    bool scan_no_publish_bus = false;
-    std::string scan_command(DEFAULT_SCAN_COMMAND);
-    std::string scan_default_topic(DEFAULT_SCAN_TOPIC);
-    std::string scan_new_topic(DEFAULT_NEW_SCAN_TOPIC);
-    std::string scan_type(DEFAULT_SCAN_TYPE);
-    std::string scan_sub_type(DEFAULT_SCAN_SUB_TYPE);
-    std::string scan_manufacturer(DEFAULT_SCAN_MANUFACTURER);
-    std::string scan_filter_key;
-    std::string scan_filter_value;
+        MdnsSdServer::Parameters mdnsSdServerParameters;
+        mdnsSdServerParameters.actorName = "fty-mdns-sd";
+        mdnsSdServerParameters.endpoint = "ipc://@/malamute";
+        mdnsSdServerParameters.ftyInfoCommand = "INFO";
+        mdnsSdServerParameters.scanCommand = DEFAULT_SCAN_COMMAND;
+        mdnsSdServerParameters.scanDefaultTopic = DEFAULT_SCAN_TOPIC;
+        mdnsSdServerParameters.scanNewTopic = DEFAULT_NEW_SCAN_TOPIC;
 
-    ManageFtyLog::setInstanceFtylog(actor_name);
+        MdnsSdManager::Parameters mdnsSdManagerParameters;
+        mdnsSdManagerParameters.scanOnly = false;
+        mdnsSdManagerParameters.scanDaemonActive = false;
+        mdnsSdManagerParameters.scanAuto = false;
+        mdnsSdManagerParameters.scanStdOut = false;
+        mdnsSdManagerParameters.scanNoPublishBus = false;
+        mdnsSdManagerParameters.scanType = DEFAULT_SCAN_TYPE;
+        mdnsSdManagerParameters.scanSubType = DEFAULT_SCAN_SUB_TYPE;
+        mdnsSdManagerParameters.scanManufacturer = DEFAULT_SCAN_MANUFACTURER;
+        mdnsSdManagerParameters.scanFilterKey = "";
+        mdnsSdManagerParameters.scanFilterValue = "";
 
-    //parse command line
-    for (argn = 1; argn < argc; argn++) {
-        char *param = NULL;
-        if (argn < argc - 1) param = argv [argn+1];
+        ManageFtyLog::setInstanceFtylog(mdnsSdServerParameters.actorName);
 
-        if (streq (argv [argn], "--help")
-        ||  streq (argv [argn], "-h")) {
-            usage();
-            return 0;
+        // Parse command line
+        for (argn = 1; argn < argc; argn++) {
+            char *param = NULL;
+            if (argn < argc - 1) param = argv [argn+1];
+
+            if (streq (argv [argn], "--help")
+            ||  streq (argv [argn], "-h")) {
+                usage();
+                return 0;
+            }
+            else if (streq (argv [argn], "--verbose") || streq (argv [argn], "-v")) {
+                verbose = true;
+            }
+            else if (streq (argv [argn], "--endpoint") || streq (argv [argn], "-e")) {
+                if (param) mdnsSdServerParameters.endpoint = param;
+                ++argn;
+            }
+            else if (streq (argv [argn], "--config") || streq (argv [argn], "-c")) {
+                if (param) configFile = param;
+                ++argn;
+            }
+            else if (streq (argv [argn], "--scan") || streq (argv [argn], "-s")) {
+                mdnsSdManagerParameters.scanOnly = true;
+            }
+            else if (streq (argv [argn], "--topic") || streq (argv [argn], "-t")) {
+                if (param) mdnsSdServerParameters.scanDefaultTopic = param;
+                ++argn;
+            }
+            else if (streq (argv [argn], "--daemonscan") || streq (argv [argn], "-d")) {
+                mdnsSdManagerParameters.scanDaemonActive = true;
+            }
+            else if (streq (argv [argn], "--autoscan") || streq (argv [argn], "-a")) {
+                mdnsSdManagerParameters.scanAuto = true;
+            }
+            else if (streq (argv [argn], "--stdout") || streq (argv [argn], "-o")) {
+                mdnsSdManagerParameters.scanStdOut = true;
+            }
+            else if (streq (argv [argn], "--nopublishbus") || streq (argv [argn], "-n")) {
+                mdnsSdManagerParameters.scanNoPublishBus = true;
+            }
+            else {
+                printf ("Unknown option: %s\n", argv [argn]);
+                return 1;
+            }
         }
-        else if (streq (argv [argn], "--verbose") || streq (argv [argn], "-v")) {
-            verbose = true;
-        }
-        else if (streq (argv [argn], "--endpoint") || streq (argv [argn], "-e")) {
-            if (param) endpoint = param;
-            ++argn;
-        }
-        else if (streq (argv [argn], "--config") || streq (argv [argn], "-c")) {
-            if (param) config_file = param;
-            ++argn;
-        }
-        else if (streq (argv [argn], "--scan") || streq (argv [argn], "-s")) {
-            scan_only = true;
-        }
-        else if (streq (argv [argn], "--topic") || streq (argv [argn], "-t")) {
-            if (param) scan_default_topic = param;
-            ++argn;
-        }
-        else if (streq (argv [argn], "--daemonscan") || streq (argv [argn], "-d")) {
-            scan_daemon_active = true;
-        }
-        else if (streq (argv [argn], "--autoscan") || streq (argv [argn], "-a")) {
-            scan_auto = true;
-        }
-        else if (streq (argv [argn], "--stdout") || streq (argv [argn], "-o")) {
-            scan_std_out = true;
-        }
-        else if (streq (argv [argn], "--nopublishbus") || streq (argv [argn], "-n")) {
-            scan_no_publish_bus = true;
+
+        //parse config file
+        if (!configFile.empty()) {
+            log_debug ("fty_mdns_sd:LOAD: %s", configFile.c_str());
+            config = zconfig_load(configFile.c_str());
+            if (!config) {
+                log_error ("Failed to load config file %s: %m", configFile.c_str());
+                exit (EXIT_FAILURE);
+            }
+            verbose = s_get(config, "server/verbose", "false") == std::string("true");
+            mdnsSdServerParameters.endpoint = s_get(config, "malamute/endpoint", mdnsSdServerParameters.endpoint);
+            mdnsSdServerParameters.actorName = s_get(config, "malamute/address", mdnsSdServerParameters.actorName);
+            mdnsSdServerParameters.ftyInfoCommand = s_get(config, "fty-info/command", mdnsSdServerParameters.ftyInfoCommand);
+            mdnsSdManagerParameters.scanDaemonActive = s_get(config, "scan/daemon_active", "false") == std::string("true");
+            mdnsSdManagerParameters.scanAuto = s_get(config, "scan/auto", "false") == std::string("true");
+            mdnsSdManagerParameters.scanStdOut = s_get(config, "scan/std_out", "true") == std::string("true");
+            mdnsSdManagerParameters.scanNoPublishBus = s_get(config, "scan/no_bus_out", "false") == std::string("true");
+            mdnsSdServerParameters.scanCommand = s_get(config, "scan/command", mdnsSdServerParameters.scanCommand);
+            mdnsSdServerParameters.scanDefaultTopic = s_get(config, "scan/default_scan_topic", mdnsSdServerParameters.scanDefaultTopic);
+            mdnsSdServerParameters.scanNewTopic = s_get(config, "scan/new_scan_topic", mdnsSdServerParameters.scanNewTopic);
+            mdnsSdManagerParameters.scanType = s_get(config, "scan/type", mdnsSdManagerParameters.scanType);
+            mdnsSdManagerParameters.scanSubType = s_get(config, "scan/sub_type", mdnsSdManagerParameters.scanSubType);
+            mdnsSdManagerParameters.scanManufacturer = s_get(config, "scan/manufacturer", mdnsSdManagerParameters.scanManufacturer);
+            mdnsSdManagerParameters.scanFilterKey = s_get(config, "scan/filter_key", mdnsSdManagerParameters.scanFilterKey);
+            mdnsSdManagerParameters.scanFilterValue = s_get(config, "scan/filter_value", mdnsSdManagerParameters.scanFilterValue);
+            logConfig = s_get(config, "log/config", DEFAULT_LOG_CONFIG);
         }
         else {
-            printf ("Unknown option: %s\n", argv [argn]);
-            return 1;
+            logConfig = DEFAULT_LOG_CONFIG;
         }
-    }
-
-    //parse config file
-    if (!config_file.empty()) {
-        log_debug ("fty_mdns_sd:LOAD: %s", config_file.c_str());
-        config = zconfig_load(config_file.c_str());
-        if (!config) {
-            log_error ("Failed to load config file %s: %m", config_file.c_str());
-            exit (EXIT_FAILURE);
+        ManageFtyLog::getInstanceFtylog()->setConfigFile(logConfig);
+        if (verbose) {
+            ManageFtyLog::getInstanceFtylog()->setVeboseMode();
         }
-        verbose = s_get(config, "server/verbose", "false") == std::string("true");
-        endpoint = s_get(config, "malamute/endpoint", endpoint);
-        actor_name = s_get(config, "malamute/address", actor_name);
-        fty_info_command = s_get(config, "fty-info/command", fty_info_command);
-        scan_daemon_active = s_get(config, "scan/daemon_active", "false") == std::string("true");
-        scan_auto = s_get(config, "scan/auto", "false") == std::string("true");
-        scan_std_out = s_get(config, "scan/std_out", "true") == std::string("true");
-        scan_no_publish_bus = s_get(config, "scan/no_bus_out", "false") == std::string("true");
-        scan_command = s_get(config, "scan/command", scan_command);
-        scan_default_topic = s_get(config, "scan/default_scan_topic", scan_default_topic);
-        scan_new_topic = s_get(config, "scan/new_scan_topic", scan_new_topic);
-        scan_type = s_get(config, "scan/type", scan_type);
-        scan_sub_type = s_get(config, "scan/sub_type", scan_sub_type);
-        scan_manufacturer = s_get(config, "scan/manufacturer", scan_manufacturer);
-        scan_filter_key = s_get(config, "scan/filter_key", scan_filter_key);
-        scan_filter_value = s_get(config, "scan/filter_value", scan_filter_value);
-        log_config = s_get(config, "log/config", DEFAULT_LOG_CONFIG);
-    }
-    else {
-        log_config = DEFAULT_LOG_CONFIG;
-    }
-    ManageFtyLog::getInstanceFtylog()->setConfigFile(log_config);
-    if (verbose) {
-        ManageFtyLog::getInstanceFtylog()->setVeboseMode();
-    }
 
-    zactor_t *server = zactor_new(fty_mdns_sd_server, (void*)actor_name.c_str());
-    assert(server);
-    zstr_sendx(server, "CONNECT", endpoint.c_str(), NULL);
-    if (!scan_only) {
-        zstr_sendx(server, "CONSUMER", "ANNOUNCE", ".*", NULL);
-        log_info("scan_daemon_active=%u", scan_daemon_active);
-        if (scan_daemon_active) {
-            zstr_sendx(server, "PRODUCER-SCAN", scan_default_topic.c_str(), NULL);
-            if (scan_auto) {
-                zstr_sendx(server, "PRODUCER-NEW-SCAN", scan_new_topic.c_str(), NULL);
+        // Launch manager
+        MdnsSdManager mdnsSdManager(mdnsSdManagerParameters);
+
+        // Launch server
+        MdnsSdServer mdnsSdServer(mdnsSdServerParameters, mdnsSdManager);
+
+        mdnsSdManager.init(mdnsSdServer);
+
+        // If scan manual, do scan and exit program
+        if (mdnsSdManagerParameters.scanOnly) {
+           mdnsSdManager.doScan();
+        }
+        else {
+            // Do default service announcement after timeout specified
+            mdnsSdManager.doDefaultAnnounce(WAIT_SERVICE_ANNOUNCEMENT_SEC);
+
+            //
+            setSignalHandler();
+
+            // If scan auto activated, wait new devices each time timeout occurred
+            if (mdnsSdManagerParameters.scanDaemonActive && mdnsSdManagerParameters.scanAuto) {
+                while (1) {
+                    // Wait timeout or interrupt.
+                    std::unique_lock<std::mutex> lock(g_mutex);
+                    // if interrupt occurred, end program
+                    if (g_cv.wait_for(lock, std::chrono::milliseconds(100), [](){ return g_exit; })) {
+                       break;
+                    }
+                    // else timeout occurred, read new devices
+                    else {
+                        mdnsSdManager.getService()->waitEvents();
+                        mdnsSdServer.publishMsgNewServices();
+                    }
+                }
             }
-            zstr_sendx(server, "SCAN-PARAMETERS",
-                scan_command.c_str(),
-                scan_type.c_str(),
-                scan_sub_type.c_str(),
-                scan_manufacturer.c_str(),
-                scan_filter_key.c_str(),
-                scan_filter_value.c_str(),
-                scan_auto ? "true" : "false",
-                scan_std_out ? "true" : "false",
-                scan_no_publish_bus ? "true" : "false", NULL);
+            else {
+                // Wait until interrupt
+                std::unique_lock<std::mutex> lock(g_mutex);
+                g_cv.wait(lock, [](){ return g_exit; });
+            }
         }
-        ////do first announcement
-        zclock_sleep(5000);
-        zstr_sendx(server, "DO-DEFAULT-ANNOUNCE", fty_info_command.c_str(), NULL);
+        return EXIT_SUCCESS;
     }
-    else {
-        log_info ("scan_only=%u", scan_only);
-        if (!scan_no_publish_bus) {
-            zstr_sendx(server, "PRODUCER-SCAN", scan_default_topic.c_str(), NULL);
-        }
-        zstr_sendx(server, "SCAN-PARAMETERS",
-            scan_command.c_str(),
-            scan_type.c_str(),
-            scan_sub_type.c_str(),
-            scan_manufacturer.c_str(),
-            scan_filter_key.c_str(),
-            scan_filter_value.c_str(),
-            scan_auto ? "true" : "false",
-            scan_std_out ? "true" : "false",
-            scan_no_publish_bus ? "true" : "false", NULL);
-        zstr_sendx(server, "DO-SCAN", NULL);
+    catch(std::exception & e)
+    {
+        log_error ("fty_mdns_sd: Error '%s'", e.what());
     }
-
-    while (!zsys_interrupted) {
-        zmsg_t *msg = zactor_recv(server);
-        char *command = zmsg_popstr(msg);
-        if (streq(command, "STOP")) {
-            break;
-        }
-        zmsg_destroy(&msg);
+    catch(...)
+    {
+        log_error ("fty_mdns_sd: Error unknown");
     }
-    zactor_destroy(&server);
-    zconfig_destroy(&config);
-    log_info("fty_mdns_sd - exited");
-    return EXIT_SUCCESS;
+    return EXIT_FAILURE;
 }

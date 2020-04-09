@@ -78,8 +78,13 @@
         test = "fty_common_selftest" >
     </use-->
 
+    <use project = "fty-common-messagebus" libname = "libfty_common_messagebus" header = "fty_common_messagebus.h"
+        repository = "https://github.com/42ity/fty-common-messagebus.git"
+        test = "fty_common_messagebus_selftest"/>
+
     <class name = "avahi-wrapper" private = "1">Avahi wrapper</class>
     <class name = "fty-mdns-sd-mapping" private = "1">mdns sd mapping class</class>
+    <class name = "fty-mdns-sd-manager">mdns sd manager</class>
     <class name = "fty-mdns-sd-server">mdns sd server</class>
 
     <main  name = "fty-mdns-sd" service = "1">mdns sd service</main>

@@ -48,6 +48,7 @@ all_tests [] = {
 #endif // FTY_MDNS_SD_BUILD_DRAFT_API
 #ifdef FTY_MDNS_SD_BUILD_DRAFT_API
 // Tests for draft public classes:
+    { "fty_mdns_sd_manager", fty_mdns_sd_manager_test, false, true, NULL },
     { "fty_mdns_sd_server", fty_mdns_sd_server_test, false, true, NULL },
 #endif // FTY_MDNS_SD_BUILD_DRAFT_API
     {NULL, NULL, 0, 0, NULL}          //  Sentinel

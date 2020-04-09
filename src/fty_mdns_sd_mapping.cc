@@ -36,7 +36,8 @@ ServiceDeviceMapping::ServiceDeviceMapping():
     m_extendedInfo()
 {}
 
-ServiceDeviceMapping::ServiceDeviceMapping(std::string hostname, std::string name, std::string address, std::string port, ExtendedInfoMapping extendedInfo) :
+ServiceDeviceMapping::ServiceDeviceMapping(const std::string &hostname, const std::string &name,
+    const std::string &address, const std::string &port, const ExtendedInfoMapping &extendedInfo) :
     m_serviceHostname(hostname),
     m_serviceName(name),
     m_serviceAddress(address),
@@ -51,16 +52,14 @@ void ServiceDeviceMapping::fillSerializationInfo(cxxtools::SerializationInfo& si
         si.addMember(SERVICE_NAME_ENTRY) <<= m_serviceName;
         si.addMember(SERVICE_ADDRESS_ENTRY) <<= m_serviceAddress;
         si.addMember(SERVICE_PORT_ENTRY) <<= m_servicePort;
-        si.addMember(SERVICE_EXTENDED_INFO_ENTRY).setCategory(cxxtools::SerializationInfo::Object);
-        cxxtools::SerializationInfo *extended = si.findMember(SERVICE_EXTENDED_INFO_ENTRY);
-        if (extended) {
-            for (auto &info : m_extendedInfo) {
-                extended->addMember(info.first) <<= info.second;
-            }
+        auto& extendedSi = si.addMember(SERVICE_EXTENDED_INFO_ENTRY);
+        extendedSi.setCategory(cxxtools::SerializationInfo::Object);
+        for (auto &info : m_extendedInfo) {
+            extendedSi.addMember(info.first) <<= info.second;
         }
     }
     catch(const std::exception& e) {
-        throw std::runtime_error("Error in json: " + std::string(e.what()));
+        log_error("Error in json: %s", e.what());
     }
 }
 
@@ -80,7 +79,7 @@ void ServiceDeviceMapping::fromSerializationInfo(const cxxtools::SerializationIn
         }
     }
     catch(const std::exception& e) {
-        throw std::runtime_error("Error in json: " + std::string(e.what()));
+        log_error("Error in json: %s", e.what());
     }
 }
 
@@ -99,12 +98,34 @@ std::string ServiceDeviceMapping::toString() const
         returnData = output.str();
     }
     catch(const std::exception& e) {
-        throw std::runtime_error("Error in json: " + std::string(e.what()));
+        log_error("Error in json: %s", e.what());
     }
     return returnData;
 }
 
-void operator>>= (const std::string& str, ServiceDeviceMapping & mapping)
+ServiceDeviceMapping ServiceDeviceMapping::convertAvahiService(AvahiResolvedService const& avahiResolvedService)
+{
+    ServiceDeviceMapping serviceDeviceMapping;
+    serviceDeviceMapping.m_serviceHostname = avahiResolvedService.hostname;
+    serviceDeviceMapping.m_serviceName = avahiResolvedService.service.name;
+    serviceDeviceMapping.m_serviceAddress = avahiResolvedService.address;
+    std::ostringstream s;
+    s << avahiResolvedService.port;
+    serviceDeviceMapping.m_servicePort = s.str();
+    ExtendedInfoMapping extendedInfo;
+    for (auto &elemt : avahiResolvedService.txt) {
+        std::string::size_type pos;
+        if ((pos = elemt.find("=")) != std::string::npos) {
+            std::string key = elemt.substr(0, pos);
+            std::string value = elemt.substr(pos + 1);
+            extendedInfo.insert(std::make_pair(key, value));
+        }
+    }
+    serviceDeviceMapping.m_extendedInfo = extendedInfo;
+    return serviceDeviceMapping;
+}
+
+void operator>>= (const std::string& str, ServiceDeviceMapping& mapping)
 {
     cxxtools::SerializationInfo si;
 
@@ -115,24 +136,24 @@ void operator>>= (const std::string& str, ServiceDeviceMapping & mapping)
         deserializer.deserialize(si);
     }
     catch(const std::exception& e) {
-        throw std::runtime_error("Error in json: " + std::string(e.what()));
+        log_error("Error in json: %s", e.what());
     }
 
     mapping.fromSerializationInfo(si);
 }
 
-void operator<<= (cxxtools::SerializationInfo& si, const ServiceDeviceMapping & mapping)
+void operator<<= (cxxtools::SerializationInfo& si, const ServiceDeviceMapping& mapping)
 {
     mapping.fillSerializationInfo(si);
 }
 
-void operator>>= (const cxxtools::SerializationInfo& si, ServiceDeviceMapping & mapping)
+void operator>>= (const cxxtools::SerializationInfo& si, ServiceDeviceMapping& mapping)
 {
     mapping.fromSerializationInfo(si);
 }
 
 // add a stream operator to display the ServiceDeviceMapping in debug for example
-std::ostream& operator<< (std::ostream& os, const ServiceDeviceMapping & mapping)
+std::ostream& operator<< (std::ostream& os, const ServiceDeviceMapping& mapping)
 {
     os << mapping.toString() << std::endl;
     return os;
@@ -147,7 +168,7 @@ ServiceDeviceListMapping::ServiceDeviceListMapping():
     m_serviceDeviceList()
 {}
 
-ServiceDeviceListMapping::ServiceDeviceListMapping(ServiceDeviceList serviceDeviceList) :
+ServiceDeviceListMapping::ServiceDeviceListMapping(const ServiceDeviceList& serviceDeviceList) :
     m_serviceDeviceList(serviceDeviceList)
 {}
 
@@ -160,7 +181,7 @@ void ServiceDeviceListMapping::fillSerializationInfo(cxxtools::SerializationInfo
         }
     }
     catch(const std::exception& e) {
-        throw std::runtime_error("Error in json: " + std::string(e.what()));
+        log_error("Error in json: %s", e.what());
     }
 }
 
@@ -174,7 +195,7 @@ void ServiceDeviceListMapping::fromSerializationInfo(const cxxtools::Serializati
         }
     }
     catch(const std::exception& e) {
-        throw std::runtime_error("Error in json: " + std::string(e.what()));
+        log_error("Error in json: %s", e.what());
     }
 }
 
@@ -194,10 +215,20 @@ std::string ServiceDeviceListMapping::toString() const
         returnData = output.str();
     }
     catch(const std::exception& e) {
-        throw std::runtime_error("Error in json: " + std::string(e.what()));
+        log_error("Error in json: %s", e.what());
     }
     return returnData;
 }
+
+ServiceDeviceListMapping ServiceDeviceListMapping::convertAvahiServices(AvahiResolvedServices const& avahiResolvedServices)
+{
+    ServiceDeviceListMapping serviceDeviceListMapping;
+    for (auto &avahiResolvedService : avahiResolvedServices) {
+        serviceDeviceListMapping.m_serviceDeviceList.push_back(ServiceDeviceMapping::convertAvahiService(avahiResolvedService));
+    }
+    return serviceDeviceListMapping;
+}
+
 
 void operator>>= (const std::string& str, ServiceDeviceListMapping & mapping)
 {
@@ -212,7 +243,7 @@ void operator>>= (const std::string& str, ServiceDeviceListMapping & mapping)
     }
     catch(const std::exception& e)
     {
-        throw std::runtime_error("Error in json: " + std::string(e.what()));
+        log_error("Error in json: %s", e.what());
     }
 
     mapping.fromSerializationInfo(si);

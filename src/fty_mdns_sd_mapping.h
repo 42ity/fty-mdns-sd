@@ -29,12 +29,12 @@
  *
  */
 
-static constexpr const char* SERVICE_HOST_NAME_ENTRY = "service_host_name";
-static constexpr const char* SERVICE_NAME_ENTRY = "service_name";
-static constexpr const char* SERVICE_ADDRESS_ENTRY = "service_address";
-static constexpr const char* SERVICE_PORT_ENTRY = "service_port";
+static constexpr const char* SERVICE_HOST_NAME_ENTRY     = "service_host_name";
+static constexpr const char* SERVICE_NAME_ENTRY          = "service_name";
+static constexpr const char* SERVICE_ADDRESS_ENTRY       = "service_address";
+static constexpr const char* SERVICE_PORT_ENTRY          = "service_port";
 static constexpr const char* SERVICE_EXTENDED_INFO_ENTRY = "service_extended_info";
-static constexpr const char* SERVICE_DEVICES_LIST_ENTRY = "service_devices_list";
+static constexpr const char* SERVICE_DEVICES_LIST_ENTRY  = "service_devices_list";
 
 using ExtendedInfoMapping = std::map<std::string, std::string>;
 
@@ -45,13 +45,16 @@ class ServiceDeviceMapping
 {
 public:
     explicit ServiceDeviceMapping();
-    ServiceDeviceMapping(std::string hostname, std::string name, std::string address, std::string port, ExtendedInfoMapping extendedInfo);
+    ServiceDeviceMapping(const std::string &hostname, const std::string &name, const std::string &address, const std::string &port, const ExtendedInfoMapping &extendedInfo);
 
     void fillSerializationInfo(cxxtools::SerializationInfo& si) const;
     void fromSerializationInfo(const cxxtools::SerializationInfo& si);
+    ServiceDeviceMapping(AvahiResolvedService avahiNewService);
 
     std::string toString() const;
+    static ServiceDeviceMapping convertAvahiService(AvahiResolvedService const&);
 
+protected:
     // Attributs
     std::string m_serviceHostname;
     std::string m_serviceName;
@@ -60,12 +63,12 @@ public:
     ExtendedInfoMapping m_extendedInfo;
 };
 
-void operator<<= (cxxtools::SerializationInfo& si, const ServiceDeviceMapping & mapping);
-void operator>>= (const cxxtools::SerializationInfo& si, ServiceDeviceMapping & mapping);
-void operator>>= (const std::string& str, ServiceDeviceMapping & mapping);
+void operator<<= (cxxtools::SerializationInfo& si, const ServiceDeviceMapping &mapping);
+void operator>>= (const cxxtools::SerializationInfo& si, ServiceDeviceMapping &mapping);
+void operator>>= (const std::string& str, ServiceDeviceMapping &mapping);
 
 // add a stream operator to display the ServiceDeviceMapping in debug for example
-std::ostream& operator<< (std::ostream& os, const ServiceDeviceMapping & mapping);
+std::ostream& operator<< (std::ostream& os, const ServiceDeviceMapping &mapping);
 
 using ServiceDeviceList = std::list<ServiceDeviceMapping>;
 
@@ -76,13 +79,15 @@ class ServiceDeviceListMapping
 {
 public:
     explicit ServiceDeviceListMapping();
-    ServiceDeviceListMapping(ServiceDeviceList serviceDevicesList);
+    ServiceDeviceListMapping(const ServiceDeviceList &serviceDevicesList);
 
     void fillSerializationInfo(cxxtools::SerializationInfo& si) const;
     void fromSerializationInfo(const cxxtools::SerializationInfo& si);
 
     std::string toString() const;
+    static ServiceDeviceListMapping convertAvahiServices(AvahiResolvedServices const&);
 
+protected:
     // Attributs
     ServiceDeviceList m_serviceDeviceList;
 };

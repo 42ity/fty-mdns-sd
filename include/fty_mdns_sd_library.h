@@ -35,6 +35,7 @@
 #include <cxxtools/allocator.h>
 #include <avahi-client/client.h>
 #include <fty_log.h>
+#include <fty_common_messagebus.h>
 
 //  FTY_MDNS_SD version macros for compile-time API detection
 #define FTY_MDNS_SD_VERSION_MAJOR 1
@@ -82,6 +83,8 @@
 //  These classes are stable or legacy and built in all releases
 //  Draft classes are by default not built in stable releases
 #ifdef FTY_MDNS_SD_BUILD_DRAFT_API
+typedef struct _fty_mdns_sd_manager_t fty_mdns_sd_manager_t;
+#define FTY_MDNS_SD_MANAGER_T_DEFINED
 typedef struct _fty_mdns_sd_server_t fty_mdns_sd_server_t;
 #define FTY_MDNS_SD_SERVER_T_DEFINED
 #endif // FTY_MDNS_SD_BUILD_DRAFT_API
@@ -89,6 +92,7 @@ typedef struct _fty_mdns_sd_server_t fty_mdns_sd_server_t;
 
 //  Public classes, each with its own header file
 #ifdef FTY_MDNS_SD_BUILD_DRAFT_API
+#include "fty_mdns_sd_manager.h"
 #include "fty_mdns_sd_server.h"
 #endif // FTY_MDNS_SD_BUILD_DRAFT_API
 

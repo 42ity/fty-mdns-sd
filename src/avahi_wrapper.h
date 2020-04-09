@@ -45,12 +45,12 @@
 
 #include "fty_mdns_sd_classes.h"
 
-#define SERVICE_NAME_KEY      "name"
-#define SERVICE_TYPE_KEY      "type"
-#define SERVICE_SUBTYPE_KEY   "subType"
-#define SERVICE_PORT_KEY      "port"
+static constexpr const char* SERVICE_NAME_KEY    = "name";
+static constexpr const char* SERVICE_TYPE_KEY    = "type";
+static constexpr const char* SERVICE_SUBTYPE_KEY = "subType";
+static constexpr const char* SERVICE_PORT_KEY    = "port";
 
-#define TIMEOUT_WAIT_EVENTS   1000
+static constexpr const uint TIMEOUT_WAIT_EVENTS  = 100;
 
 typedef std::map<std::string, std::string> map_string_t;
 

@@ -19,6 +19,7 @@ src_libfty_mdns_sd_la_SOURCES = \
 
 if ENABLE_DRAFTS
 src_libfty_mdns_sd_la_SOURCES += \
+    src/fty_mdns_sd_manager.cc \
     src/fty_mdns_sd_server.cc
 
 endif

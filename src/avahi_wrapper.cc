@@ -24,7 +24,8 @@
  *
  */
 
-#include "avahi_wrapper.h"
+//#include "avahi_wrapper.h"
+#include "fty_mdns_sd_classes.h"
 #include <czmq.h>
 
 extern "C" void s_client_callback(AvahiClient* client, AvahiClientState state, void *userdata)

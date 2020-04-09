@@ -28,868 +28,321 @@
 
 #include "fty_mdns_sd_classes.h"
 //#include "fty_common_macros.h"  // TBD
-#include "avahi_wrapper.h"
 
-#define TIMEOUT_MS 5000   //wait at least 5 seconds
+#include <chrono>
+#include <thread>
+#include <bits/unique_ptr.h>
 
-//  Structure of our class
-
-
-struct _fty_mdns_sd_server_t {
-    char *name;              // actor name
-    mlm_client_t *client;    // malamute client
-    char *fty_info_command;
-    AvahiWrapper *service;   // service mDNS-SD
-    int count_service;
-
-    //default service announcement definition
-    char *srv_name;
-    char *srv_type;
-    char *srv_stype;
-    char *srv_port;
-    //TXT attributes
-    zhash_t *map_txt;
-
-    char *scan_command;
-    char *scan_topic;
-    char *scan_new_topic;
-    char *scan_type;
-    bool scan_auto;
-    bool scan_std_out;
-    bool scan_no_publish_bus;
-
-    std::mutex publishMessageMutex;
-};
-
-//free dynamic item
-static void s_destroy_txt(void *arg)
+MdnsSdServer::Parameters::Parameters() :
+    requesterName("fty-mdns-sd-requester"),
+    requesterTempScanName("fty-mdns-sd-requester-tmp-scan"),
+    requesterNewScanName("fty-mdns-sd-requester-new-scan"),
+    threadPoolSize(3)
 {
-    char *value=(char*)arg;
-    zstr_free(&value);
 }
 
-static void
-s_set_txt_record(fty_mdns_sd_server_t *self,const char *key,const char *value)
+MdnsSdServer::MdnsSdServer(Parameters parameters, MdnsSdManager &manager) :
+    m_parameters(parameters),
+    m_manager(manager),
+    m_worker(m_parameters.threadPoolSize),
+    m_msgBusReceiver(messagebus::MlmMessageBus(m_parameters.endpoint, m_parameters.actorName)),
+    m_msgBusRequester(messagebus::MlmMessageBus(m_parameters.endpoint, m_parameters.requesterName))
 {
-    if(value==NULL) return;
-    log_debug ("s_set_txt_record(%s,%s)",key,value);
-    char *_value = strdup(value);
-    int rv=zhash_insert(self->map_txt,key,_value);
-    if(rv==-1)
-        zhash_update(self->map_txt,key,_value);
-    zhash_freefn(self->map_txt,key,s_destroy_txt);
-}
+    m_msgBusReceiver->connect();
+    m_msgBusReceiver->subscribe("ANNOUNCE", std::bind(&MdnsSdServer::handleNotifyService, this, std::placeholders::_1));
+    m_msgBusReceiver->receive("REQUEST_ANNOUNCE", std::bind(&MdnsSdServer::handleRequestService, this, std::placeholders::_1, "REQUEST_ANNOUNCE"));
 
-static void
-s_set_txt_records(fty_mdns_sd_server_t *self, zhash_t * map_txt)
-{
-    if(map_txt==NULL) return;
-    if(self->map_txt!=NULL)
-        zhash_destroy (&self->map_txt);
-    self->map_txt = zhash_dup(map_txt);
-}
+    m_msgBusRequester->connect();
 
-static void
-s_set_srv_name(fty_mdns_sd_server_t *self,const char *value)
-{
-    if(value==NULL) return;
-    //delete previous dyn value
-    zstr_free (&self->srv_name);
-    char *_value = strdup(value);
-    self->srv_name = _value;
-}
-
-static void
-s_set_srv_port(fty_mdns_sd_server_t *self,const char *value)
-{
-    if(value==NULL) return;
-    //delete previous dyn value
-    zstr_free (&self->srv_port);
-    char *_value = strdup(value);
-    self->srv_port = _value;
-}
-
-static void
-s_set_srv_type(fty_mdns_sd_server_t *self,const char *value)
-{
-    if(value==NULL) return;
-    //delete previous dyn value
-    zstr_free (&self->srv_type);
-    char *_value = strdup(value);
-    self->srv_type = _value;
-}
-
-static void
-s_set_srv_stype(fty_mdns_sd_server_t *self,const char *value)
-{
-    if(value==NULL) return;
-    //delete previous dyn value
-    zstr_free (&self->srv_stype);
-    char *_value = strdup(value);
-    self->srv_stype = _value;
-}
-
-static void
-s_set_scan_command(fty_mdns_sd_server_t *self, const char *value)
-{
-    if (value == NULL) return;
-    // delete previous value
-    zstr_free(&self->scan_command);
-    char *_value = strdup(value);
-    self->scan_command = _value;
-}
-
-static void
-s_set_scan_topic(fty_mdns_sd_server_t *self, const char *value)
-{
-    if (value == NULL) return;
-    // delete previous value
-    zstr_free(&self->scan_topic);
-    char *_value = strdup(value);
-    self->scan_topic = _value;
-}
-
-static void
-s_set_scan_new_topic(fty_mdns_sd_server_t *self, const char *value)
-{
-    if (value == NULL) return;
-    // delete previous value
-    zstr_free(&self->scan_new_topic);
-    char *_value = strdup(value);
-    self->scan_new_topic = _value;
-}
-
-static void
-s_set_scan_type(fty_mdns_sd_server_t *self,const char *value)
-{
-    if (value == NULL) return;
-    // delete previous value
-    zstr_free(&self->scan_type);
-    char *_value = strdup(value);
-    self->scan_type = _value;
-}
-
-//  --------------------------------------------------------------------------
-//  Create a new fty_mdns_sd_server
-fty_mdns_sd_server_t *
-fty_mdns_sd_server_new (const char* name)
-{
-    fty_mdns_sd_server_t *self = (fty_mdns_sd_server_t *) zmalloc (sizeof (fty_mdns_sd_server_t));
-    assert (self);
-    //  Initialize class properties here
-    if (!name) {
-        log_error ("Address for fty_mdns_sd actor is NULL");
-        free (self);
-        return NULL;
-    }
-    self->name    = strdup (name);
-    self->client  = mlm_client_new();
-    self->service = new AvahiWrapper(); // service mDNS-SD
-    self->count_service = 0;
-    self->map_txt = zhash_new();
-
-    //do minimal initialization
-    s_set_txt_record(self, "uuid", "00000000-0000-0000-0000-000000000000");
-
-    self->scan_command = NULL;
-    self->scan_topic = NULL;
-    self->scan_new_topic = NULL;
-    self->scan_type = NULL;
-    self->scan_auto = false;
-    self->scan_std_out = false;
-    self->scan_no_publish_bus = false;
-
-    return self;
-}
-
-
-//  --------------------------------------------------------------------------
-//  Destroy the fty_mdns_sd_server
-
-void
-fty_mdns_sd_server_destroy (fty_mdns_sd_server_t **self_p)
-{
-    assert (self_p);
-    if (*self_p) {
-        fty_mdns_sd_server_t *self = *self_p;
-        //  Free class properties here
-        zstr_free (&self->name);
-        zstr_free (&self->srv_name);
-        zstr_free (&self->srv_type);
-        zstr_free (&self->srv_stype);
-        zstr_free (&self->srv_port);
-        zstr_free (&self->fty_info_command);
-        mlm_client_destroy (&self->client);
-        zhash_destroy (&self->map_txt);
-        delete self->service;
-        zstr_free (&self->scan_command);
-        zstr_free (&self->scan_topic);
-        zstr_free (&self->scan_new_topic);
-        zstr_free (&self->scan_type);
-        //  Free object itself
-        free (self);
-        *self_p = NULL;
+    if (m_manager.getParameters().scanAuto) {
+        m_msgBusRequesterNewScan = std::unique_ptr<messagebus::MessageBus>(messagebus::MlmMessageBus(m_parameters.endpoint, m_parameters.requesterNewScanName));
+        m_msgBusRequesterNewScan->connect();
     }
 }
 
 //  --------------------------------------------------------------------------
 //  get info from fty-info agent
 
-static int
-s_poll_fty_info(fty_mdns_sd_server_t *self)
+int MdnsSdServer::pollFtyInfo()
 {
-    assert (self);
+    try {
+        messagebus::Message message;
 
-    zmsg_t *send = zmsg_new ();
-    zmsg_addstr (send, self->fty_info_command);
-    zuuid_t *uuid = zuuid_new ();
-    zmsg_addstr (send, zuuid_str_canonical (uuid));
-    log_debug ("requesting fty-info ..");
-    if (mlm_client_sendto(self->client, "fty-info", "info", NULL, 1000, &send) != 0)
-    {
-        log_error("info: client->sendto (address = '%s') failed.", "fty-info");
-        zmsg_destroy(&send);
-        zuuid_destroy(&uuid);
-        return -2;
+        std::string uuid = messagebus::generateUuid();
+        message.userData().push_back("INFO");
+        message.userData().push_back(uuid);
+
+        message.metaData().clear();
+        message.metaData().emplace(messagebus::Message::RAW, "");
+        message.metaData().emplace(messagebus::Message::SUBJECT, "info");
+        message.metaData().emplace(messagebus::Message::FROM, m_parameters.requesterName);
+        message.metaData().emplace(messagebus::Message::TO, "fty-info");
+        message.metaData().emplace(messagebus::Message::CORRELATION_ID, uuid);
+        message.metaData().emplace(messagebus::Message::REPLY_TO, m_parameters.requesterName);
+        //m_msgBusRequester.get()->sendRequest("fty-info", message);
+        messagebus::Message resp = m_msgBusRequester->request("fty-info", message, 10);
+        /*for (const auto &data : resp.userData()) {
+            log_info("data=\"%s\"", data.c_str());
+        }
+        for (const auto &meta : resp.metaData()) {
+            log_info("meta:\"%s=%s\"", meta.first.c_str(), meta.second.c_str());
+        }*/
+        if (resp.userData().size() < 7)  {
+            throw std::runtime_error("pollFtyInfoAndAnnounce: bad message");
+        }
+        log_trace("resp.userData().size()=%d", resp.userData().size());
+        std::string uuid_recv = resp.userData().front();
+        resp.userData().pop_front();
+        if (uuid_recv != uuid) {
+            throw std::runtime_error("pollFtyInfoAndAnnounce: receive bad uuid");
+        }
+        resp.userData().pop_front();  // pop subject
+
+        // this suppose to be an update, service must be created already
+        m_manager.setSrvName(resp.userData().front());
+        resp.userData().pop_front();
+        m_manager.setSrvType(resp.userData().front());
+        resp.userData().pop_front();
+        m_manager.setSrvSubType(resp.userData().front());
+        resp.userData().pop_front();
+        m_manager.setSrvPort(resp.userData().front());
+        resp.userData().pop_front();
+        log_debug("fty-mdns-sd-server: new ANNOUNCEMENT from %s", m_manager.getSrvName().c_str());
+        // Get extended values
+        std::string mystring = resp.userData().front();
+        resp.userData().pop_front();
+        unsigned char buffer[mystring.length()];
+        std::copy(mystring.begin(), mystring.end(), buffer);
+        zframe_t *frame_infos = zframe_new(buffer, mystring.length());
+        zhash_t *infos = zhash_unpack(frame_infos);
+        std::map<std::string, std::string> map_txt;
+        char *value = (char *) zhash_first(infos);
+        while (value) {
+            const char *key = (char *) zhash_cursor(infos);
+            map_txt.insert(std::make_pair(key, value));
+            value = (char *) zhash_next(infos);
+        }
+        m_manager.setMapTxt(map_txt);
+        zhash_destroy(&infos);
+        zframe_destroy(&frame_infos);
+    } catch (messagebus::MessageBusException& ex) {
+        log_error("%s", ex.what());
     }
-
-    zmsg_t *resp = mlm_client_recv(self->client);
-    if (!resp)
-    {
-        log_error ("info: client->recv (timeout = '5') returned NULL");
-        return -3;
-    }
-
-    char *zuuid_or_error = zmsg_popstr (resp);
-    assert(strneq (zuuid_or_error, "ERROR"));
-    //TODO : check UUID if you think it is important
-    zstr_free(&zuuid_or_error);
-    zuuid_destroy(&uuid);
-
-    char *cmd = zmsg_popstr (resp);
-    if(strneq (cmd, "INFO")) {
-        log_error ("%s: not received INFO command (%s)", __func__, cmd);
-        return -4;
-    }
-    char *srv_name  = zmsg_popstr (resp);
-    char *srv_type  = zmsg_popstr (resp);
-    char *srv_stype = zmsg_popstr (resp);
-    char *srv_port  = zmsg_popstr (resp);
-
-    s_set_srv_name(self,srv_name);
-    s_set_srv_type(self,srv_type);
-    s_set_srv_stype(self,srv_stype);
-    s_set_srv_port(self,srv_port);
-
-    zframe_t *frame_infos = zmsg_next (resp);
-    zhash_t *infos = zhash_unpack(frame_infos);
-    s_set_txt_records(self,infos);
-
-    zhash_destroy(&infos);
-    zstr_free (&cmd);
-    zstr_free (&srv_name);
-    zstr_free (&srv_type);
-    zstr_free (&srv_stype);
-    zstr_free (&srv_port);
-    zmsg_destroy(&resp);
-    zmsg_destroy(&send);
-
     return 0;
 }
 
-void static
-s_output_service(const AvahiResolvedService& avahiService)
+void MdnsSdServer::publishMsgNewServices()
 {
-    std::cout << "service.hostname=" << avahiService.hostname << std::endl;
-    std::cout << "service.name=" << avahiService.service.name << std::endl;
-    std::cout << "service.address=" << avahiService.address << std::endl;
-    std::cout << "service.port=" << avahiService.port << std::endl;
-    for (const auto &txt : avahiService.txt) {
-        std::cout << txt << std::endl;
-    }
-}
-
-void static
-s_output_services(const AvahiResolvedServices& avahiServices)
-{
-    for (const auto &avahiService : avahiServices) {
-        std::cout << std::string(30, '*') << std::endl;
-        s_output_service(avahiService);
-    }
-}
-
-void
-publish_msg_new_services(fty_mdns_sd_server_t* self)
-{
-    if (!(self && self->client && self->service && self->scan_new_topic)) {
-        log_error("publish_msg_new_service failed: bad input parameter");
-        return;
-    }
-
     // If some new services present
-    if (self->service->getNumberResolvedNewService() > 0) {
-        // Secure producer for publish (TBD)
-        std::lock_guard<std::mutex> lockPublishMessageMutex(self->publishMessageMutex);
-        if (mlm_client_set_producer(self->client, self->scan_new_topic) == -1) {
-            log_error("%s:\tSet producer to '%s' failed", self->name, self->scan_new_topic);
-            return;
-        }
+    if (m_manager.getService()->getNumberResolvedNewService() > 0) {
+        while (m_manager.getService()->getNumberResolvedNewService() > 0) {
+            AvahiResolvedService avahiNewService = m_manager.getService()->getLastResolvedNewService();
+            log_trace("New service '%s' discover: count_service=%d", avahiNewService.service.name.c_str(), m_manager.addCountService());
 
-        while (self->service->getNumberResolvedNewService() > 0) {
-            AvahiResolvedService avahiNewService = self->service->getLastResolvedNewService();
-            log_trace("New service '%s' discover: count_service=%d", avahiNewService.service.name.c_str(), ++self->count_service);
-            zmsg_t *msg_service = zmsg_new();
-            for (const auto& data : std::vector<std::string>({
-                std::string("service.hostname=") + avahiNewService.hostname,
-                std::string("service.name=") + avahiNewService.service.name,
-                std::string("service.address=") + avahiNewService.address,
-                std::string("service.port=") + std::to_string(avahiNewService.port)
-            })) {
-                zmsg_addstr(msg_service, data.c_str());
+            ServiceDeviceMapping serviceDeviceMapping = ServiceDeviceMapping::convertAvahiService(avahiNewService);
+            messagebus::Message message;
+            message.userData().push_back(serviceDeviceMapping.toString());
+            message.metaData().clear();
+            message.metaData().emplace(messagebus::Message::FROM, m_parameters.requesterName);
+            //message.metaData().emplace(messagebus::Message::SUBJECT, "");
+            if (m_msgBusRequesterNewScan != nullptr) m_msgBusRequesterNewScan->publish(m_parameters.scanNewTopic, message);
+            if (m_manager.getParameters().scanStdOut) {
+                m_manager.outputService(avahiNewService);
             }
-            for (const auto &txt : avahiNewService.txt) {
-                zmsg_addstr(msg_service, txt.c_str());
-            }
-            int rc = mlm_client_send(self->client, "MESSAGE", &msg_service);
-            if (rc != 0)
-            {
-                log_error("mlm_client_send failed (rc: %d)", rc);
-            }
-            if (self->scan_std_out) {
-                s_output_service(avahiNewService);
-            }
-            zmsg_destroy(&msg_service);
         }
     }
 }
 
-void static
-s_publish_msg_services(fty_mdns_sd_server_t* self, AvahiResolvedServices& avahiServices, const char *scan_topic)
+void MdnsSdServer::publishMsgServices(AvahiResolvedServices& avahiServices)
 {
-    if (!(self && self->client && self->scan_topic)) {
-        log_error("publish_msg_new_service failed: bad input parameter");
-        return;
-    }
-
-    // Need to change producer if scan auto activated
-    if (self->scan_auto) {
-        // Secure producer for publish (TBD)
-        std::lock_guard<std::mutex> lockPublishMessageMutex(self->publishMessageMutex);
-        if (mlm_client_set_producer(self->client, scan_topic ? scan_topic : self->scan_topic) == -1) {
-            log_error("%s:\tSet producer to '%s' failed", self->name, scan_topic ? scan_topic : self->scan_topic);
-            return;
-        }
-    }
-    for(const AvahiResolvedService avahiService : avahiServices)
-    {
-        zmsg_t *msg_service = zmsg_new();
-        for (const auto& data : std::vector<std::string>({
-            std::string("service.hostname=") + avahiService.hostname,
-            std::string("service.name=") + avahiService.service.name,
-            std::string("service.address=") + avahiService.address,
-            std::string("service.port=") + std::to_string(avahiService.port)
-        })) {
-            zmsg_addstr(msg_service, data.c_str());
-        }
-        for (const auto &txt : avahiService.txt) {
-            zmsg_addstr(msg_service, txt.c_str());
-        }
-        int rc = mlm_client_send(self->client, "MESSAGE", &msg_service);
-        if (rc != 0)
-        {
-            log_error("mlm_client_send failed (rc: %d)", rc);
-        }
-        zmsg_destroy(&msg_service);
-    }
+    ServiceDeviceListMapping serviceDeviceListMapping = ServiceDeviceListMapping::convertAvahiServices(avahiServices);
+    messagebus::Message message;
+    message.userData().push_back(serviceDeviceListMapping.toString());
+    message.metaData().emplace(messagebus::Message::FROM, m_parameters.requesterName);
+    //message.metaData().emplace(messagebus::Message::SUBJECT, "");
+    m_msgBusRequester->publish(m_parameters.scanDefaultTopic, message);
 }
 
-void static
-s_add_msg_services(zmsg_t *msg_service_p, AvahiResolvedServices& avahiServices)
+void MdnsSdServer::publishMsgServicesOnTopic(AvahiResolvedServices& avahiServices, const std::string &scanTopic)
 {
-    if (!msg_service_p) {
-        return;
-    }
-    for(const AvahiResolvedService avahiService : avahiServices)
-    {
-        for (const auto& data : std::vector<std::string>({
-            std::string("service.hostname=") + avahiService.hostname,
-            std::string("service.name=") + avahiService.service.name,
-            std::string("service.address=") + avahiService.address,
-            std::string("service.port=") + std::to_string(avahiService.port)
-        })) {
-            zmsg_addstr(msg_service_p, data.c_str());
-        }
-        for (const auto &txt : avahiService.txt) {
-            zmsg_addstr(msg_service_p, txt.c_str());
-        }
-        zmsg_addstr(msg_service_p, "OK"); // End service
-    }
+    ServiceDeviceListMapping serviceDeviceListMapping = ServiceDeviceListMapping::convertAvahiServices(avahiServices);
+    messagebus::Message message;
+    message.userData().push_back(serviceDeviceListMapping.toString());
+    message.metaData().emplace(messagebus::Message::FROM, m_parameters.requesterName);
+    //message.metaData().emplace(messagebus::Message::SUBJECT, "");
+    std::unique_ptr<messagebus::MessageBus> msgBusRequester(messagebus::MlmMessageBus(m_parameters.endpoint, m_parameters.requesterTempScanName));
+    msgBusRequester->connect();
+    msgBusRequester->publish(scanTopic, message);
 }
 
-//  --------------------------------------------------------------------------
-//  process pipe message
-//  return true means continue, false means TERM
-bool static
-s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
+void MdnsSdServer::handleNotifyService(messagebus::Message msg)
 {
-    if (! message_p || ! *message_p) return true;
-    zmsg_t *message = *message_p;
-    bool res = true;
-
-    char *command = zmsg_popstr (message);
-    if (!command) {
-        zmsg_destroy (message_p);
-        log_warning ("Empty command.");
-        return true;
-    }
-    if (streq(command, "$TERM")) {
-        log_info ("Got $TERM");
-        zmsg_destroy (message_p);
-        zstr_free (&command);
-        return false;
-    }
-    else if (streq (command, "CONNECT")) {
-        char *endpoint = zmsg_popstr (message);
-        if (!endpoint)
-            log_error ("%s:\tMissing endpoint", self->name);
-        assert (endpoint);
-        int r = mlm_client_connect (self->client, endpoint, 5000, self->name);
-        if (r == -1)
-            log_error ("%s:\tConnection to endpoint '%s' failed", self->name, endpoint);
-        log_debug("fty-mdns-sd-server: CONNECT %s/%s",endpoint,self->name);
-        zstr_free (&endpoint);
-    }
-    else if (streq (command, "CONSUMER")) {
-        char *stream = zmsg_popstr (message);
-        char *pattern = zmsg_popstr (message);
-        if (stream && pattern) {
-            log_debug("fty-mdns-sd-server: CONSUMER [%s,%s]", stream, pattern);
-            int r = mlm_client_set_consumer (self->client, stream, pattern);
-            if (r == -1) {
-                log_error ("%s:\tSet consumer to '%s' with pattern '%s' failed", self->name, stream, pattern);
+    log_trace("MdnsSdServer::handleNotifyService: received message.");
+    m_worker.offload([this](messagebus::Message msg) {
+        try {
+            log_info("msg.userData().size()=%d", msg.userData().size());
+            if (msg.userData().size() == 0)  {
+                throw std::runtime_error("handleNotifyService: bad message");
             }
-        } else {
-            log_error ("%s:\tMissing params in CONSUMER command", self->name);
-        }
-        zstr_free (&stream);
-        zstr_free (&pattern);
-    }
-    else if (streq(command, "PRODUCER-SCAN")) {
-        char *scan_topic = zmsg_popstr(message);
-        s_set_scan_topic(self, scan_topic);
-        // Set default producer for scan
-        if (scan_topic) {
-            log_debug("fty-mdns-sd-server: PRODUCER-SCAN [%s]", scan_topic);
-            int r = mlm_client_set_producer(self->client, scan_topic);
-            if (r == -1) {
-                log_error("%s:\tSet producer to '%s' failed", self->name, scan_topic);
+            std::string command = msg.userData().front();
+            msg.userData().pop_front();
+            //
+            if (command == "INFO") {
+                // this suppose to be an update, service must be created already
+                m_manager.setSrvName(msg.userData().front());
+                msg.userData().pop_front();
+                m_manager.setSrvType(msg.userData().front());
+                msg.userData().pop_front();
+                m_manager.setSrvSubType(msg.userData().front());
+                msg.userData().pop_front();
+                m_manager.setSrvPort(msg.userData().front());
+                msg.userData().pop_front();
+                log_debug("fty-mdns-sd-server: new ANNOUNCEMENT from %s", m_manager.getSrvName().c_str());
+                // Get extended values
+                std::string mystring = msg.userData().front();
+                msg.userData().pop_front();
+                unsigned char buffer[mystring.length()];
+                std::copy(mystring.begin(), mystring.end(), buffer);
+                zframe_t *frame_infos = zframe_new(buffer, mystring.length());
+                zhash_t *infos = zhash_unpack(frame_infos);
+                std::map<std::string, std::string> map_txt;
+                char *value = (char *) zhash_first(infos);
+                while (value) {
+                    const char *key = (char *) zhash_cursor(infos);
+                    map_txt.insert(std::make_pair(key, value));
+                    value = (char *) zhash_next(infos);
+                }
+                m_manager.setMapTxt(map_txt);
+                zhash_destroy(&infos);
+                zframe_destroy(&frame_infos);
+                m_manager.getService()->update();
             }
-        } else {
-            log_error("%s:\tMissing params in PRODUCER-SCAN command", self->name);
-        }
-        zstr_free(&scan_topic);
-    }
-    else if (streq(command, "PRODUCER-NEW-SCAN")) {
-        char *scan_new_topic = zmsg_popstr(message);
-        s_set_scan_new_topic(self, scan_new_topic);
-        zstr_free(&scan_new_topic);
-    }
-    else if (streq (command, "SET-DEFAULT-SERVICE")) {
-         //set new ones
-        char *name  = zmsg_popstr (message);
-        char *type  = zmsg_popstr (message);
-        char *stype = zmsg_popstr (message);
-        char *port  = zmsg_popstr (message);
-        log_debug("fty-mdns-sd-server: SET-DEFAULT-SERVICE [%s,%s,%s,%s]",
-            name,type,stype,port) ;
-        s_set_srv_name(self,name);
-        s_set_srv_type(self,type);
-        s_set_srv_stype(self,stype);
-        s_set_srv_port(self,port);
-        zstr_free(&name);
-        zstr_free(&type);
-        zstr_free(&stype);
-        zstr_free(&port);
-    }
-    else if (streq (command, "SET-DEFAULT-TXT")) {
-        char *key   = zmsg_popstr (message);
-        char *value = zmsg_popstr (message);
-        log_debug("fty-mdns-sd-server: SET-DEFAULT-TXT %s=%s",
-            key,value) ;
-         s_set_txt_record(self,key,value);
-        zstr_free(&key);
-        zstr_free(&value);
-    }
-    else if (streq (command, "DO-DEFAULT-ANNOUNCE")) {
-        //free previous value
-        zstr_free (&self->fty_info_command);
-        //get info from fty-info
-        self->fty_info_command = zmsg_popstr (message);
-        log_debug("fty-mdns-sd-server: DO-DEFAULT-ANNOUNCE %s",
-                self->fty_info_command);
-        int rv = -1;
-        int tries = 3;
-        while (tries-- >= 0) {
-            rv=s_poll_fty_info(self);
-            if (rv == 0)
-                break;
-            // Wait 5 seconds before retrying
-            if (tries == 0)
-                zclock_sleep (5000);
-        }
-        // sanity check, this should trigger a service abort then restart
-        // in the worst case, if we did not succeeded after 3 tries
-        assert(rv==0);
-        self->service->setServiceDefinition(
-            self->srv_name,
-            self->srv_type,
-            self->srv_stype,
-            self->srv_port);
-        //set all txt properties
-        self->service->setTxtRecords (self->map_txt);
-        self->service->announce();
-    }
-    else if (streq (command, "DO-ANNOUNCE")) {
-        self->service->setServiceDefinition(
-            self->srv_name,
-            self->srv_type,
-            self->srv_stype,
-            self->srv_port);
-        // set all txt properties
-        self->service->setTxtRecords(self->map_txt);
-        self->service->announce();
-    }
-    else if (streq(command, "SCAN-PARAMETERS")) {
-        char *scan_command = zmsg_popstr(message);
-        char *scan_type = zmsg_popstr(message);
-        char *scan_sub_type = zmsg_popstr(message);
-        char *scan_manufacturer = zmsg_popstr(message);
-        char *scan_filter_key = zmsg_popstr(message);
-        char *scan_filter_value = zmsg_popstr(message);
-        AvahiScanFilter scanFilter(scan_sub_type, scan_manufacturer, scan_filter_key, scan_filter_value);
-        self->service->setScanFilter(scanFilter);
-        self->scan_auto = streq(zmsg_popstr(message), "true");
-        self->scan_std_out = streq(zmsg_popstr(message), "true");
-        self->scan_no_publish_bus = streq(zmsg_popstr(message), "true");
-        s_set_scan_command(self, scan_command);
-        s_set_scan_type(self, scan_type);
-        zstr_free(&scan_command);
-        zstr_free(&scan_type);
-        zstr_free(&scan_sub_type);
-        zstr_free(&scan_manufacturer);
-        zstr_free(&scan_filter_key);
-        zstr_free(&scan_filter_value);
-        log_trace("scan_auto=%u", self->scan_auto);
-        if (self->scan_auto && self->service) {
-            self->service->startBrowseNewServices(self->scan_type);
-        }
-    }
-    else if (streq (command, "DO-SCAN")) {
-        if (self->service) {
-            auto results = self->service->scanServices(self->scan_type);
-            // publish result on bus if not deactivated
-            if (!self->scan_no_publish_bus) {
-                s_publish_msg_services(self, results, nullptr);
+            // Scan services
+            else if (command == m_parameters.scanCommand) {
+                if (m_manager.getParameters().scanDaemonActive) {
+                    auto results = m_manager.getService()->scanServices(m_manager.getParameters().scanType);
+                    // publish result on bus if not deactivated
+                    if (!m_manager.getParameters().scanNoPublishBus) {
+                        std::string scanTopic;
+                        std::string scanDefaultTopic = m_parameters.scanDefaultTopic;
+                        if (msg.userData().size() >= 1) {
+                            scanTopic = msg.userData().front();
+                            msg.userData().pop_front();
+                            log_debug("handleNotifyService: scanTopic=%s", scanTopic.c_str());
+                        }
+                        if (!scanTopic.empty() && scanDefaultTopic != scanTopic) {
+                            publishMsgServicesOnTopic(results, scanTopic);
+                        }
+                        else {
+                            publishMsgServices(results);
+                        }
+                    }
+                    // display result on stdout if activated
+                    if (m_manager.getParameters().scanStdOut) {
+                        m_manager.outputServices(results);
+                    }
+                }
+                else {
+                    log_info("handleNotifyService: scan not activated");
+                }
             }
-            log_info("DO-SCAN scan_std_out=%u", self->scan_std_out);
-            // display result on stdout if activated
-            if (self->scan_std_out) {
-                s_output_services(results);
+            else {
+                log_error("handleNotifyService: Unknown command %s", command.c_str());
             }
-            res = false;
         }
-    }
-    else {
-        log_warning ("%s:\tUnkown API command=%s, ignoring", self->name, command);
-    }
-    zstr_free (&command);
-    zmsg_destroy (&message);
-    return res;
-}
-//  --------------------------------------------------------------------------
-//  process message from ANNOUNCE stream
-void static
-s_handle_stream(fty_mdns_sd_server_t* self, zmsg_t **message_p)
-{
-    zmsg_t *message = *message_p;
-    char *cmd = zmsg_popstr (message);
-
-    if (cmd) {
-        if (streq (cmd, "INFO")) {
-            // this suppose to be an update, service must be created already
-            char *srv_name = zmsg_popstr (message);
-            char *srv_type  = zmsg_popstr (message);
-            char *srv_stype = zmsg_popstr (message);
-            char *srv_port  = zmsg_popstr (message);
-
-            log_debug("fty-mdns-sd-server: new ANNOUNCEMENT from %s", srv_name);
-
-            zframe_t *infosframe = zmsg_pop (message);
-            zhash_t *infos = zhash_unpack (infosframe);
-            if (srv_name && srv_type && srv_stype && srv_port && infos) {
-                s_set_srv_name (self, srv_name);
-                s_set_srv_type (self, srv_type);
-                s_set_srv_stype (self, srv_stype);
-                s_set_srv_port (self, srv_port);
-                self->service->setTxtRecords (infos);
-                self->service->update ();
-            } else {
-                log_error ("Malformed IPC message received");
-            }
-            zhash_destroy (&infos);
-            zframe_destroy (&infosframe);
-            zstr_free(&srv_type);
-            zstr_free(&srv_stype);
-            zstr_free(&srv_port);
-            zstr_free (&srv_name);
+        catch (std::exception& e) {
+            log_error("Exception while processing notify service: %s", e.what());
         }
-        // Scan services
-        else if (self->scan_command && streq(cmd, self->scan_command)) {
-            char *topic_new_scan = zmsg_popstr(message);
-            auto results = self->service->scanServices(self->scan_type);
-            // publish result on bus if not deactivated
-            if (!self->scan_no_publish_bus) {
-                s_publish_msg_services(self, results, topic_new_scan);
-            }
-            // display result on stdout if activated
-            if (self->scan_std_out) {
-                s_output_services(results);
-            }
-            if (topic_new_scan) zstr_free(&topic_new_scan);
-        }
-        else {
-            log_error ("Unknown command %s", cmd);
-        }
-        zstr_free (&cmd);
-    }
-    zmsg_destroy (message_p);
+    }, std::move(msg));
 }
 
-//  --------------------------------------------------------------------------
-//  process message from MAILBOX
-
-void static
-s_handle_mailbox(fty_mdns_sd_server_t* self, zmsg_t **message_p)
+void MdnsSdServer::handleRequestService(messagebus::Message msg, std::string subject)
 {
-    const char *sender = mlm_client_sender(self->client);
-    const char *subject = mlm_client_subject(self->client);
-    char *message_type = nullptr;
-    char *uuid = nullptr;
-    char *command = nullptr;
-    zmsg_t *reply = nullptr;
+    log_trace("MdnsSdServer::handleRequestService: received message.");
 
-    log_debug("%s:\tMAILBOX-DELIVER %s from %s", self->name, subject, sender);
-
-    // bmsg request fty-mdns-sd GET REQUEST 1234 START-SCAN
-
-    // Get inputs, new reply
-    message_type = zmsg_popstr(*message_p);
-    uuid = zmsg_popstr(*message_p);
-    command = zmsg_popstr(*message_p);
-    reply = zmsg_new();
-
-    // Check inputs & reply (subject ignored)
-    if (!(message_type && uuid && command && reply)) {
-        if (!message_type) log_error("%s:\tExpected message type", self->name);
-        else if (!uuid) log_error("%s:\tExpected correlation ID", self->name);
-        else if (!command) log_error("%s:\tExpected command", self->name);
-        else if (!reply) log_error("%s:\tReply allocation failed", self->name);
-        else log_error("%s:\tError", self->name);
-    }
-    else {
-
-        log_debug("%s:\tMAILBOX-DELIVER %s %s %s %s", self->name, subject, message_type, uuid, command);
-
-        // Message model always enforce reply
-        zmsg_addstr(reply, uuid);
-        zmsg_addstr(reply, "REPLY");
-        zmsg_addstr(reply, command);
-
-        // Check message type (handle REQUEST only)
-        if (!streq(message_type, "REQUEST")) {
-            log_error("%s:\tMAILBOX-DELIVER Invalid message type (%s)", self->name, message_type);
-            zmsg_addstr(reply, "ERROR"); // status
-            // TBD: translation
-            //zmsg_addstrf(reply, TRANSLATE_ME("Invalid message type (%s)").c_str(), message_type);
-            zmsg_addstrf(reply, "Invalid message type (%s)", message_type);
-        }
-        // Handle REQUEST commands
-        else if (self->scan_command && streq(command, self->scan_command)) {
-            zmsg_addstr(reply, "OK"); // status
-            auto results = self->service->scanServices(self->scan_type);
-            s_add_msg_services(reply, results);
-            log_trace("scan_std_out=%u", self->scan_std_out);
-            // display result on stdout if activated
-            if (self->scan_std_out) {
-                s_output_services(results);
+    m_worker.offload([this, subject](messagebus::Message msg) {
+        try {
+            log_info("msg.userData().size()=%d", msg.userData().size());
+            if (msg.userData().size() < 3)  {
+                throw std::runtime_error("handleRequestService: bad message");
             }
-        }
-        else {
-            log_error("%s:\tMAILBOX-DELIVER Invalid command (%s)", self->name, command);
-            zmsg_addstr(reply, "ERROR"); // status
-            // TBD: translation
-            //zmsg_addstr(reply, /*TRANSLATE_ME*/("Invalid command").c_str());
-            zmsg_addstr(reply, "Invalid command");
-        }
+            std::string message_type = msg.userData().front();
+            msg.userData().pop_front();
+            std::string uuid_recv = msg.userData().front();
+            msg.userData().pop_front();
+            std::string command = msg.userData().front();
+            msg.userData().pop_front();
 
-        // Send reply
-        mlm_client_sendto(self->client, sender, subject, NULL, 1000, &reply);
-    }
+            messagebus::Message response;
+            response.userData().push_back(uuid_recv);
+            response.userData().push_back("REPLY");
+            response.userData().push_back(command);
 
-    // Cleanup
-    zmsg_destroy(&reply);
-    zstr_free(&command);
-    zstr_free(&uuid);
-    zstr_free(&message_type);
-    zmsg_destroy(message_p);
-}
-
-//  --------------------------------------------------------------------------
-//  Create a new fty_mdns_sd_server
-
-void
-fty_mdns_sd_server (zsock_t *pipe, void *args)
-{
-    char*name=(char*) args;
-    fty_mdns_sd_server_t *self = fty_mdns_sd_server_new(name);
-    assert (self);
-
-    zpoller_t *poller = zpoller_new (pipe, mlm_client_msgpipe (self->client), NULL);
-    assert (poller);
-
-    // do not forget to send a signal to actor :)
-    zsock_signal (pipe, 0);
-
-    log_info ("fty-mdns-sd-server: Started with name '%s'",self->name);
-
-    self->service->start();
-
-    while (!zsys_interrupted) {
-        void *which = zpoller_wait (poller, 100);  // TBD: work with 100ms, don't work with 1000ms ???
-
-        if (which == pipe) {
-            zmsg_t *message = zmsg_recv (pipe);
-            if(! s_handle_pipe (self, &message)) {
-                // send command to exit main
-                zstr_sendx(pipe, "STOP", NULL);
-                break; // TERM
+            if (message_type != "REQUEST") {
+                log_error("handleRequestService: Invalid message type (%s)", message_type.c_str());
+                response.userData().push_back("ERROR"); // status
+                // TBD: translation
+                //message.userData().push_back(TRANSLATE_ME("Invalid message type"));
+                response.userData().push_back("Invalid message type");
             }
-            // end of command pipe processing
-        }
-        else if (which == mlm_client_msgpipe (self->client)) {
-            zmsg_t *message = mlm_client_recv (self->client);
-            const char *command = mlm_client_command (self->client);
-            if (streq (command, "STREAM DELIVER")) {
-                s_handle_stream (self, &message);
+            else if (!m_manager.getParameters().scanDaemonActive) {
+                log_error("handleRequestService: scan not activated");
+                response.userData().push_back("ERROR"); // status
+                // TBD: translation
+                //message.userData().push_back(TRANSLATE_ME("Scan not activated"));
+                response.userData().push_back("Scan not activated");
             }
-            else
-            if (streq (command, "MAILBOX DELIVER")) {
-                s_handle_mailbox (self, &message);
+            else if (command != m_parameters.scanCommand) {
+                log_error("handleRequestService: Invalid command type (%s)", command.c_str());
+                response.userData().push_back("ERROR"); // status
+                // TBD: translation
+                //response.userData().push_back(TRANSLATE_ME("Invalid command"));
+                response.userData().push_back("Invalid command");
             }
+            else {
+                response.userData().push_back("OK"); // status
+                auto results = m_manager.getService()->scanServices(m_manager.getParameters().scanType);
+                // display result on stdout if activated
+                if (m_manager.getParameters().scanStdOut) {
+                    m_manager.outputServices(results);
+                }
+                ServiceDeviceListMapping serviceDeviceListMapping = ServiceDeviceListMapping::convertAvahiServices(results);
+                response.userData().push_back(serviceDeviceListMapping.toString());
+            }
+            std::string replyQueue;
+            // Consider that it is a message which come from legacy message bus library when only "_from" meta data is present
+            // In this case, the reply queue is the subject and no send meta information to replier
+            if (msg.metaData().size() == 1) {
+                replyQueue = subject;
+                response.metaData().emplace(messagebus::Message::RAW, "");
+            }
+            else {
+                response.metaData().emplace(messagebus::Message::SUBJECT, subject);
+                auto it = msg.metaData().find(messagebus::Message::REPLY_TO);
+                if (it != msg.metaData().end()) {
+                    log_info("replyQueue=%s", it->second.c_str());
+                    replyQueue = it->second;
+                }
+            }
+            auto it = msg.metaData().find(messagebus::Message::FROM);
+            if (it != msg.metaData().end()) {
+                log_debug("Add meta:\"%s=%s\"", it->first.c_str(), it->second.c_str());
+                response.metaData().emplace(messagebus::Message::TO, it->second);
+            }
+            response.metaData().emplace(messagebus::Message::CORRELATION_ID, uuid_recv);
+            log_debug("replyQueue=%s", replyQueue.c_str());
+            m_msgBusRequester->sendReply(replyQueue, response);
         }
-
-        if (self->scan_auto) {
-            self->service->waitEvents();
-            publish_msg_new_services(self);
+        catch (std::exception& e) {
+            log_error("Exception while processing request service: %s", e.what());
         }
-    }
-
-    self->service->stop();
-    fty_mdns_sd_server_destroy (&self);
-    zpoller_destroy (&poller);
+    }, std::move(msg));
 }
 
 //  --------------------------------------------------------------------------
 //  Self test of this class
 
-//#define AVAHI_DAEMON_RUNNING
-#undef AVAHI_DAEMON_RUNNING
-
-void
-fty_mdns_sd_server_test (bool verbose)
+void fty_mdns_sd_server_test (bool verbose)
 {
-    printf (" * fty_mdns_sd_server: ");
-
-    // @selftest
-
-    // Default service announcement (this test needs avahi-deamon running)
-    {
-        zactor_t *server = zactor_new(fty_mdns_sd_server, (void*)"fty-mdns-sd-test");
-        assert(server);
-
-        zstr_sendx(server, "CONNECT", "ipc://@/malamute", NULL);
-
-        zclock_sleep(1000);
-
-        // do first announcement
-#ifdef AVAHI_DAEMON_RUNNING
-        zstr_sendx(server, "DO-DEFAULT-ANNOUNCE", "INFO", NULL);
-#endif
-        zactor_destroy(&server);
-    }
-
-    // Specific service announcement and detect it with scan (this test needs avahi-deamon running)
-    {
-        zactor_t *server = zactor_new(fty_mdns_sd_server, (void*)"fty-mdns-sd-test");
-        assert(server);
-
-        zstr_sendx(server, "CONNECT", "ipc://@/malamute", NULL);
-
-        zclock_sleep(1000);
-
-        zuuid_t *uuid = zuuid_new();
-        std::string strUuid(zuuid_str_canonical(uuid));
-        zuuid_destroy(&uuid);
-
-        std::stringstream buffer;
-        buffer << "IPM TEST (" << strUuid << ")";
-        std::string name = buffer.str();
-
-        zstr_sendx(server, "SET-DEFAULT-SERVICE", name.c_str(), "_https._tcp.", "_powerservice._sub._https._tcp.", "443", NULL);
-        zstr_sendx(server, "SET-DEFAULT-TXT", "txtvers", "1.0.0", NULL);
-
-#ifdef AVAHI_DAEMON_RUNNING
-        // do announcement
-        zstr_sendx(server, "DO-ANNOUNCE", NULL);
-
-        zclock_sleep(1000);
-
-        // redirect stdout for checking scan result
-        buffer.str("");
-        std::streambuf *backup = std::cout.rdbuf(buffer.rdbuf());
-
-        // scan all services
-        const char *scan_topic = DEFAULT_SCAN_ANNOUNCE;
-        const char *scan_type = DEFAULT_SCAN_TYPE;
-        bool scan_auto = false;
-        bool scan_std_out = true;
-        bool scan_no_bus_out = false;
-        if (!scan_no_bus_out) zstr_sendx(server, "PRODUCER", scan_topic, NULL);
-        zstr_sendx(server, "SCAN-PARAMETERS", "", scan_type, scan_auto ? "true" : "false", scan_std_out ? "true" : "false", scan_no_bus_out ? "true" : "false", NULL);
-        zstr_sendx(server, "DO-SCAN", NULL);
-        // wait end of scan (TODO timeout ?)
-        while (!zsys_interrupted) {
-            zmsg_t *msg = zactor_recv(server);
-            char *command = zmsg_popstr(msg);
-            if (streq(command, "STOP")) {
-                break;
-            }
-            zmsg_destroy(&msg);
-        }
-
-        // restore stdout
-        std::cout.rdbuf(backup);
-        std::cout << buffer.str() << std::endl;
-
-        // test if announcement test has been detected during scan
-        // Note: test pass even if avahi daemon not running (local boucle)
-        assert(buffer.str().find(name) != std::string::npos);
-#endif
-
-        zactor_destroy(&server);
-    }
-
-    //  @end
-    printf("OK\n");
+    printf ("fty mdns sd server test: OK\n");
 }
-

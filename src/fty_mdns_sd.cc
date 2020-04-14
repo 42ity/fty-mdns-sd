@@ -86,8 +86,6 @@ s_get (zconfig_t *config, const char *key, const char *dfl) {
 int
 main (int argc, char *argv [])
 {
-    using Arguments = std::map<std::string, std::string>;
-
     try {
         std::string configFile;
         std::string logConfig;

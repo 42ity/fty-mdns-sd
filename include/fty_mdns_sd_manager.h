@@ -45,23 +45,23 @@ class MdnsSdManager
             std::string scanFilterValue;
         };
 
-        MdnsSdManager(Parameters parameters);
+        MdnsSdManager(const Parameters parameters);
         ~MdnsSdManager() = default;
 
         AvahiWrapper *getService() { return m_service.get(); };
-        Parameters getParameters() { return m_parameters; };
+        Parameters getParameters () const { return m_parameters; };
 
-        std::string getSrvName() { return m_srvName; };
-        std::string getSrvType() { return m_srvType; };
-        std::string getSrvSubType() { return m_srvSubType; };
-        std::string getSrvPort() { return m_srvPort; };
-        std::map<std::string, std::string> &getMapTxt() { return m_mapTxt; };
+        std::string getSrvName() const { return m_srvName; };
+        std::string getSrvType() const { return m_srvType; };
+        std::string getSrvSubType() const { return m_srvSubType; };
+        std::string getSrvPort() const { return m_srvPort; };
+        std::map<std::string, std::string> getMapTxt() const { return m_mapTxt; };
 
-        void setSrvName(std::string srvName) { m_srvName = srvName; };
-        void setSrvType(std::string srvType) { m_srvType = srvType; };
-        void setSrvSubType(std::string srvSubType) { m_srvSubType = srvSubType; };
-        void setSrvPort(std::string srvPort) { m_srvPort = srvPort; };
-        void setMapTxt(std::map<std::string, std::string> mapTxt) { m_mapTxt = mapTxt; };
+        void setSrvName(const std::string srvName) { m_srvName = srvName; };
+        void setSrvType(const std::string srvType) { m_srvType = srvType; };
+        void setSrvSubType(const std::string srvSubType) { m_srvSubType = srvSubType; };
+        void setSrvPort(const std::string srvPort) { m_srvPort = srvPort; };
+        void setMapTxt(const std::map<std::string, std::string> mapTxt) { m_mapTxt = mapTxt; };
 
         void init(MdnsSdServer& server);
         //void setServer(MdnsSdServer& server) { m_server = &server; };

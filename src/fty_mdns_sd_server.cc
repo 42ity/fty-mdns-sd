@@ -41,7 +41,7 @@ MdnsSdServer::Parameters::Parameters() :
 {
 }
 
-MdnsSdServer::MdnsSdServer(Parameters parameters, MdnsSdManager &manager) :
+MdnsSdServer::MdnsSdServer(const Parameters parameters, MdnsSdManager &manager) :
     m_parameters(parameters),
     m_manager(manager),
     m_worker(m_parameters.threadPoolSize),
@@ -111,9 +111,7 @@ int MdnsSdServer::pollFtyInfo()
         // Get extended values
         std::string mystring = resp.userData().front();
         resp.userData().pop_front();
-        unsigned char buffer[mystring.length()];
-        std::copy(mystring.begin(), mystring.end(), buffer);
-        zframe_t *frame_infos = zframe_new(buffer, mystring.length());
+        zframe_t *frame_infos = zframe_new(mystring.c_str(), mystring.length());
         zhash_t *infos = zhash_unpack(frame_infos);
         std::map<std::string, std::string> map_txt;
         char *value = (char *) zhash_first(infos);
@@ -201,9 +199,7 @@ void MdnsSdServer::handleNotifyService(messagebus::Message msg)
                 // Get extended values
                 std::string mystring = msg.userData().front();
                 msg.userData().pop_front();
-                unsigned char buffer[mystring.length()];
-                std::copy(mystring.begin(), mystring.end(), buffer);
-                zframe_t *frame_infos = zframe_new(buffer, mystring.length());
+                zframe_t *frame_infos = zframe_new(mystring.c_str(), mystring.length());
                 zhash_t *infos = zhash_unpack(frame_infos);
                 std::map<std::string, std::string> map_txt;
                 char *value = (char *) zhash_first(infos);

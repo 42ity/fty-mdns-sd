@@ -139,7 +139,7 @@ public:
 
     void clearTxtRecords();
     void setTxtRecord(const char* key, const char*value);
-    void setTxtRecords(map_string_t &map);
+    void setTxtRecords(const map_string_t &map);
     void setTxtRecords(zhash_t *map);
 
     void setHostName(const std::string& name);

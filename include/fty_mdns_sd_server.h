@@ -46,13 +46,13 @@ class MdnsSdServer
             uint threadPoolSize;
         };
 
-        MdnsSdServer(Parameters parameters, MdnsSdManager &manager);
+        MdnsSdServer(const Parameters parameters, MdnsSdManager &manager);
         ~MdnsSdServer() = default;
 
         int pollFtyInfo();
 
-        Parameters getParameters() { return m_parameters; };
-        MdnsSdManager &getManager() { return m_manager; };
+        Parameters getParameters() const { return m_parameters; };
+        MdnsSdManager &getManager() const { return m_manager; };
 
         void publishMsgNewServices();
         void publishMsgServices(AvahiResolvedServices& avahiServices);
@@ -68,8 +68,8 @@ class MdnsSdServer
         void handleNotifyService(messagebus::Message msg);
         void handleRequestService(messagebus::Message msg, std::string subject);
 
-        MdnsSdManager& m_manager;
         const Parameters m_parameters;
+        MdnsSdManager& m_manager;
 
         messagebus::PoolWorker m_worker;
         std::unique_ptr<messagebus::MessageBus> m_msgBusReceiver;

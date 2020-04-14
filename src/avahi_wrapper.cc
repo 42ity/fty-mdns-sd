@@ -300,7 +300,7 @@ void AvahiWrapper::setTxtRecord(const char* key, const char*value)
 
 }
 
-void AvahiWrapper::setTxtRecords(map_string_t &map)
+void AvahiWrapper::setTxtRecords(const map_string_t &map)
 {
     clearTxtRecords ();
     for (auto it: map) {

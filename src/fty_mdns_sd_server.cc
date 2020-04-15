@@ -258,23 +258,46 @@ void MdnsSdServer::handleRequestService(messagebus::Message msg, std::string sub
 
     m_worker.offload([this, subject](messagebus::Message msg) {
         try {
-            log_info("msg.userData().size()=%d", msg.userData().size());
-            if (msg.userData().size() < 3)  {
-                throw std::runtime_error("handleRequestService: bad message");
+            log_debug("msg.userData().size()=%d msg.metaData().size()=%d", msg.userData().size(), msg.metaData().size());
+            std::string uuid_recv;
+            std::string message_type;
+            // Note: Consider that it is a legacy message (which come from legacy message bus library) when only "_from" meta data is present
+            bool isLegacyMessage = (msg.metaData().size() == 1 && msg.metaData().find(messagebus::Message::FROM) != msg.metaData().end());
+            // If legacy message
+            if (isLegacyMessage) {
+                if (msg.userData().size() < 3)  {
+                    throw std::runtime_error("handleRequestService: bad message");
+                }
+                message_type = msg.userData().front();
+                msg.userData().pop_front();
+                uuid_recv = msg.userData().front();
+                msg.userData().pop_front();
             }
-            std::string message_type = msg.userData().front();
-            msg.userData().pop_front();
-            std::string uuid_recv = msg.userData().front();
-            msg.userData().pop_front();
+            // else new message
+            else {
+                if (msg.userData().size() < 1)  {
+                    throw std::runtime_error("handleRequestService: bad message");
+                }
+                auto it = msg.metaData().find(messagebus::Message::CORRELATION_ID);
+                if (it != msg.metaData().end()) {
+                    uuid_recv = it->second;
+                }
+                else {
+                    throw std::runtime_error("handleRequestService: no uuid");
+                }
+            }
             std::string command = msg.userData().front();
             msg.userData().pop_front();
 
             messagebus::Message response;
-            response.userData().push_back(uuid_recv);
-            response.userData().push_back("REPLY");
+            // If legacy message, add mandatory user data
+            if (isLegacyMessage) {
+                response.userData().push_back(uuid_recv);
+                response.userData().push_back("REPLY");  // TBD: To add in all case ???
+            }
             response.userData().push_back(command);
 
-            if (message_type != "REQUEST") {
+            if (isLegacyMessage && message_type != "REQUEST") {
                 log_error("handleRequestService: Invalid message type (%s)", message_type.c_str());
                 response.userData().push_back("ERROR"); // status
                 // TBD: translation
@@ -306,24 +329,24 @@ void MdnsSdServer::handleRequestService(messagebus::Message msg, std::string sub
                 response.userData().push_back(serviceDeviceListMapping.toString());
             }
             std::string replyQueue;
-            // Consider that it is a message which come from legacy message bus library when only "_from" meta data is present
-            // In this case, the reply queue is the subject and no send meta information to replier
-            if (msg.metaData().size() == 1) {
+            // If legacy message, the reply queue is the subject and no send meta information to replier
+            if (isLegacyMessage) {
                 replyQueue = subject;
                 response.metaData().emplace(messagebus::Message::RAW, "");
             }
             else {
+                log_debug("subject=%s", subject.c_str());
                 response.metaData().emplace(messagebus::Message::SUBJECT, subject);
                 auto it = msg.metaData().find(messagebus::Message::REPLY_TO);
                 if (it != msg.metaData().end()) {
-                    log_info("replyQueue=%s", it->second.c_str());
+                    log_info("read replyQueue=%s", it->second.c_str());
                     replyQueue = it->second;
                 }
             }
             auto it = msg.metaData().find(messagebus::Message::FROM);
             if (it != msg.metaData().end()) {
-                log_debug("Add meta:\"%s=%s\"", it->first.c_str(), it->second.c_str());
-                response.metaData().emplace(messagebus::Message::TO, it->second);
+                log_debug("Add meta:\"%s=%s\"", messagebus::Message::TO.c_str(), it->second.c_str());
+                response.metaData().emplace(messagebus::Message::TO.c_str(), it->second);
             }
             response.metaData().emplace(messagebus::Message::CORRELATION_ID, uuid_recv);
             log_debug("replyQueue=%s", replyQueue.c_str());

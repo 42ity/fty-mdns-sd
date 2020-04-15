@@ -118,6 +118,7 @@ extern "C" void s_resolve_new_callback(
     else {
         log_error("Avahi resolve new failed for new service: %s", name);
     }
+    avahi_service_resolver_free(r);
 }
 
 extern "C" void s_browse_new_callback(
@@ -166,6 +167,7 @@ extern "C" void s_resolve_callback(
     else {
         avahiWrapper->resolveFailureCallback(event);
     }
+    avahi_service_resolver_free(r);
 }
 
 extern "C" void s_browse_callback(
@@ -248,6 +250,7 @@ AvahiWrapper::AvahiWrapper() :
     _simplePoll(nullptr),
     _client(nullptr),
     _group(nullptr),
+    _serviceNewBrowser(nullptr),
     _scanPoll(nullptr),
     _scanClient(nullptr),
     _serviceBrowser(nullptr),
@@ -346,10 +349,12 @@ void AvahiWrapper::stop()
         avahi_entry_group_reset( _group );
         avahi_entry_group_free( _group );
     }
+    if (_serviceNewBrowser) avahi_service_browser_free(_serviceNewBrowser);
     if (_serviceBrowser) avahi_service_browser_free(_serviceBrowser);
     if (_client) avahi_client_free(_client);
     if (_simplePoll) avahi_simple_poll_free(_simplePoll);
     _group = nullptr;
+    _serviceNewBrowser = nullptr;
     _serviceBrowser = nullptr;
     _client = nullptr;
     _simplePoll = nullptr;
@@ -459,7 +464,7 @@ void AvahiWrapper::update()
 
 void AvahiWrapper::startBrowseNewServices(std::string type)
 {
-    if (!(_serviceBrowser = avahi_service_browser_new(_client, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, type.c_str(),
+    if (!(_serviceNewBrowser = avahi_service_browser_new(_client, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC, type.c_str(),
         nullptr, static_cast<AvahiLookupFlags>(0), s_browse_new_callback, this))) {
         throw std::runtime_error("Couldn't allocate avahi service browser.");
     }

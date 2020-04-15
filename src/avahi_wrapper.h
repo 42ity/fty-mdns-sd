@@ -104,6 +104,7 @@ protected:
     AvahiSimplePoll* _simplePoll;
     AvahiClient* _client;
     AvahiEntryGroup* _group;
+    AvahiServiceBrowser* _serviceNewBrowser;
     AvahiResolvedServices _resolvedNewServices;
     std::mutex _newServiceMutex;
 

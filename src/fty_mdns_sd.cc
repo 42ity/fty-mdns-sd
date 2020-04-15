@@ -64,32 +64,12 @@ void setSignalHandler()
     sigaction(SIGINT, &sigIntHandler, nullptr);
 }
 
-std::string
-s_get (zconfig_t *config, const char* key, std::string &dfl) {
-    assert (config);
-    char *value = zconfig_get(config, key, dfl.c_str());
-    if (!value || streq(value, ""))
-        return dfl;
-    return std::string(value);
-}
-
-std::string
-s_get (zconfig_t *config, const char *key, const char *dfl) {
-    assert (config);
-    char *value = zconfig_get(config, key, dfl);
-    if (!value || streq(value, "")) {
-        return (!dfl) ? std::string(dfl) : std::string("");
-    }
-    return std::string(value);
-}
-
 int
 main (int argc, char *argv [])
 {
     try {
         std::string configFile;
         std::string logConfig;
-        zconfig_t *config = NULL;
 
         bool verbose = false;
         int argn;
@@ -167,28 +147,24 @@ main (int argc, char *argv [])
         //parse config file
         if (!configFile.empty()) {
             log_debug ("fty_mdns_sd:LOAD: %s", configFile.c_str());
-            config = zconfig_load(configFile.c_str());
-            if (!config) {
-                log_error ("Failed to load config file %s: %m", configFile.c_str());
-                exit (EXIT_FAILURE);
-            }
-            verbose = s_get(config, "server/verbose", "false") == std::string("true");
-            mdnsSdServerParameters.endpoint = s_get(config, "malamute/endpoint", mdnsSdServerParameters.endpoint);
-            mdnsSdServerParameters.actorName = s_get(config, "malamute/address", mdnsSdServerParameters.actorName);
-            mdnsSdServerParameters.ftyInfoCommand = s_get(config, "fty-info/command", mdnsSdServerParameters.ftyInfoCommand);
-            mdnsSdManagerParameters.scanDaemonActive = s_get(config, "scan/daemon_active", "false") == std::string("true");
-            mdnsSdManagerParameters.scanAuto = s_get(config, "scan/auto", "false") == std::string("true");
-            mdnsSdManagerParameters.scanStdOut = s_get(config, "scan/std_out", "true") == std::string("true");
-            mdnsSdManagerParameters.scanNoPublishBus = s_get(config, "scan/no_bus_out", "false") == std::string("true");
-            mdnsSdServerParameters.scanCommand = s_get(config, "scan/command", mdnsSdServerParameters.scanCommand);
-            mdnsSdServerParameters.scanDefaultTopic = s_get(config, "scan/default_scan_topic", mdnsSdServerParameters.scanDefaultTopic);
-            mdnsSdServerParameters.scanNewTopic = s_get(config, "scan/new_scan_topic", mdnsSdServerParameters.scanNewTopic);
-            mdnsSdManagerParameters.scanType = s_get(config, "scan/type", mdnsSdManagerParameters.scanType);
-            mdnsSdManagerParameters.scanSubType = s_get(config, "scan/sub_type", mdnsSdManagerParameters.scanSubType);
-            mdnsSdManagerParameters.scanManufacturer = s_get(config, "scan/manufacturer", mdnsSdManagerParameters.scanManufacturer);
-            mdnsSdManagerParameters.scanFilterKey = s_get(config, "scan/filter_key", mdnsSdManagerParameters.scanFilterKey);
-            mdnsSdManagerParameters.scanFilterValue = s_get(config, "scan/filter_value", mdnsSdManagerParameters.scanFilterValue);
-            logConfig = s_get(config, "log/config", DEFAULT_LOG_CONFIG);
+            mlm::ZConfig config(configFile);
+            verbose = config.getEntry("server/verbose", "false") == std::string("true");
+            mdnsSdServerParameters.endpoint = config.getEntry("malamute/endpoint", mdnsSdServerParameters.endpoint);
+            mdnsSdServerParameters.actorName = config.getEntry("malamute/address", mdnsSdServerParameters.actorName);
+            mdnsSdServerParameters.ftyInfoCommand = config.getEntry("fty-info/command", mdnsSdServerParameters.ftyInfoCommand);
+            mdnsSdManagerParameters.scanDaemonActive = config.getEntry("scan/daemon_active", "false") == std::string("true");
+            mdnsSdManagerParameters.scanAuto = config.getEntry("scan/auto", "false") == std::string("true");
+            mdnsSdManagerParameters.scanStdOut = config.getEntry("scan/std_out", "true") == std::string("true");
+            mdnsSdManagerParameters.scanNoPublishBus = config.getEntry("scan/no_bus_out", "false") == std::string("true");
+            mdnsSdServerParameters.scanCommand = config.getEntry("scan/command", mdnsSdServerParameters.scanCommand);
+            mdnsSdServerParameters.scanDefaultTopic = config.getEntry("scan/default_scan_topic", mdnsSdServerParameters.scanDefaultTopic);
+            mdnsSdServerParameters.scanNewTopic = config.getEntry("scan/new_scan_topic", mdnsSdServerParameters.scanNewTopic);
+            mdnsSdManagerParameters.scanType = config.getEntry("scan/type", mdnsSdManagerParameters.scanType);
+            mdnsSdManagerParameters.scanSubType = config.getEntry("scan/sub_type", mdnsSdManagerParameters.scanSubType);
+            mdnsSdManagerParameters.scanManufacturer = config.getEntry("scan/manufacturer", mdnsSdManagerParameters.scanManufacturer);
+            mdnsSdManagerParameters.scanFilterKey = config.getEntry("scan/filter_key", mdnsSdManagerParameters.scanFilterKey);
+            mdnsSdManagerParameters.scanFilterValue = config.getEntry("scan/filter_value", mdnsSdManagerParameters.scanFilterValue);
+            logConfig = config.getEntry("log/config", DEFAULT_LOG_CONFIG);
         }
         else {
             logConfig = DEFAULT_LOG_CONFIG;

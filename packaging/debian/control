@@ -31,6 +31,7 @@ Build-Depends: debhelper (>= 9),
     libcxxtools-dev,
     libavahi-client-dev (>= 0.6.31),
     libfty-common-logging-dev,
+    libfty-common-mlm-dev,
     libfty-common-messagebus-dev,
     systemd,
     dh-systemd,
@@ -56,6 +57,7 @@ Depends:
     libcxxtools-dev,
     libavahi-client-dev (>= 0.6.31),
     libfty-common-logging-dev,
+    libfty-common-mlm-dev,
     libfty-common-messagebus-dev,
     libfty-mdns-sd0 (= ${binary:Version})
 Description: fty-mdns-sd development tools

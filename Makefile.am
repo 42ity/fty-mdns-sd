@@ -19,11 +19,12 @@ AM_CPPFLAGS = \
     ${cxxtools_CFLAGS} \
     ${avahi_client_CFLAGS} \
     ${fty_common_logging_CFLAGS} \
+    ${fty_common_mlm_CFLAGS} \
     ${fty_common_messagebus_CFLAGS} \
     -D__STDC_FORMAT_MACROS \
     -I$(srcdir)/include
 
-project_libs = ${libsodium_LIBS} ${libzmq_LIBS} ${czmq_LIBS} ${malamute_LIBS} ${cxxtools_LIBS} ${avahi_client_LIBS} ${fty_common_logging_LIBS} ${fty_common_messagebus_LIBS}
+project_libs = ${libsodium_LIBS} ${libzmq_LIBS} ${czmq_LIBS} ${malamute_LIBS} ${cxxtools_LIBS} ${avahi_client_LIBS} ${fty_common_logging_LIBS} ${fty_common_mlm_LIBS} ${fty_common_messagebus_LIBS}
 
 SUBDIRS = doc
 SUBDIRS += include
@@ -51,6 +52,7 @@ EXTRA_DIST += \
     Findcxxtools.cmake \
     Findavahi_client.cmake \
     Findfty_common_logging.cmake \
+    Findfty_common_mlm.cmake \
     Findfty_common_messagebus.cmake \
     builds/cmake/Modules/ClangFormat.cmake \
     builds/cmake/clang-format-check.sh.in \

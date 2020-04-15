@@ -4,4 +4,5 @@
    fty-mdns-sd -> malamute;
    fty-mdns-sd -> cxxtools;
    fty-mdns-sd -> fty-common-logging;
+   fty-mdns-sd -> fty-common-mlm;
    fty-mdns-sd -> fty-common-messagebus;

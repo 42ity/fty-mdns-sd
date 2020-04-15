@@ -35,6 +35,7 @@
 #include <cxxtools/allocator.h>
 #include <avahi-client/client.h>
 #include <fty_log.h>
+#include <fty_common_mlm.h>
 #include <fty_common_messagebus.h>
 
 //  FTY_MDNS_SD version macros for compile-time API detection

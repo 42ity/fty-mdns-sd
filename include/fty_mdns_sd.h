@@ -38,6 +38,6 @@ static constexpr const char* DEFAULT_SCAN_TOPIC        = "SCAN-ANNOUNCE";
 static constexpr const char* DEFAULT_NEW_SCAN_TOPIC    = "SCAN-NEW-ANNOUNCE";
 static constexpr const char* DEFAULT_SCAN_TYPE         = "_https._tcp";
 static constexpr const char* DEFAULT_SCAN_SUB_TYPE     = "ups,pdu,ats";
-static constexpr const char* DEFAULT_SCAN_MANUFACTURER = "EATON";
+static constexpr const char* DEFAULT_SCAN_MANUFACTURER = "";
 
 #endif

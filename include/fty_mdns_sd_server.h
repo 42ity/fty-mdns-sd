@@ -46,13 +46,13 @@ class MdnsSdServer
             uint threadPoolSize;
         };
 
-        MdnsSdServer(const Parameters parameters, MdnsSdManager &manager);
+        MdnsSdServer(const Parameters &parameters, MdnsSdManager &manager);
         ~MdnsSdServer() = default;
 
         int pollFtyInfo();
 
-        Parameters getParameters() const { return m_parameters; };
-        MdnsSdManager &getManager() const { return m_manager; };
+        const Parameters &getParameters() const { return m_parameters; };
+        const MdnsSdManager &getManager() const { return m_manager; };
 
         void publishMsgNewServices();
         void publishMsgServices(AvahiResolvedServices& avahiServices);

@@ -52,7 +52,7 @@ static constexpr const char* SERVICE_PORT_KEY    = "port";
 
 static constexpr const uint TIMEOUT_WAIT_EVENTS  = 100;
 
-typedef std::map<std::string, std::string> map_string_t;
+using map_string_t = std::map<std::string, std::string>;
 
 void avahi_wrapper_test (bool verbose);
 
@@ -95,7 +95,7 @@ protected:
      * All class variable for the service.
      */
     map_string_t _serviceDefinition;
-    char* _serviceName;
+    std::string _serviceName;
     AvahiStringList* _txtRecords;
 
     /**
@@ -119,7 +119,7 @@ protected:
     std::mutex _scanMutex;
 
     std::string buildServiceName(const std::string &service_name,const std::string &uuid);
-    AvahiEntryGroup* createService(AvahiClient* client,char* serviceName,map_string_t &serviceDefinition,AvahiStringList *txtRecords);
+    AvahiEntryGroup* createService(AvahiClient* client, std::string &serviceName, map_string_t &serviceDefinition, AvahiStringList *txtRecords);
 
     bool isFinished() const {
         return (_doneBrowsing && (_servicesToResolve == 0)) || _failed;
@@ -135,7 +135,7 @@ public:
         const std::string& service_stype,
         const std::string& port);
 
-    char *getServiceName() { return _serviceName; };
+    std::string getServiceName() { return _serviceName; };
     AvahiEntryGroup *getGroup() { return _group; };
 
     void clearTxtRecords();
@@ -160,7 +160,6 @@ public:
     void setScanFilter(const AvahiScanFilter &scanFilter);
     bool isFilterService(const std::vector<std::string> &key_value_service);
 
-    void clientCallback(AvahiClient* client);
     void resolveNewCallback(AvahiResolverEvent event, const AvahiResolvedService &service);
     void browseNewCallback(AvahiBrowserEvent event, AvahiIfIndex interface, AvahiProtocol protocol, const AvahiService &service);
     void resolveCallback(AvahiResolverEvent event, const AvahiResolvedService &service);

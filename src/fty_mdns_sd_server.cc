@@ -41,7 +41,7 @@ MdnsSdServer::Parameters::Parameters() :
 {
 }
 
-MdnsSdServer::MdnsSdServer(const Parameters parameters, MdnsSdManager &manager) :
+MdnsSdServer::MdnsSdServer(const Parameters &parameters, MdnsSdManager &manager) :
     m_parameters(parameters),
     m_manager(manager),
     m_worker(m_parameters.threadPoolSize),

@@ -37,9 +37,6 @@ extern "C" void s_client_callback(AvahiClient* client, AvahiClientState state, v
 
                 case AVAHI_CLIENT_S_RUNNING:
                     log_debug("AVAHI_CLIENT_S_RUNNING");
-                    /* The server has startup successfully and registered its host
-                     * name on the network, so create our services */
-                    clientWrapper->clientCallback(client);
                     break;
 
                 case AVAHI_CLIENT_S_REGISTERING:
@@ -63,6 +60,9 @@ extern "C" void s_client_callback(AvahiClient* client, AvahiClientState state, v
     catch (std::exception& e) {
         log_error( "clientCallback exception:%s " , e.what() );
     }
+    catch (...) {
+        log_error( "Unknown clientCallback exception");
+    }
 }
 
 extern "C" void s_group_callback(AvahiEntryGroup* group, AvahiEntryGroupState state, void *userdata)
@@ -75,7 +75,7 @@ extern "C" void s_group_callback(AvahiEntryGroup* group, AvahiEntryGroupState st
             switch (state) {
                 case AVAHI_ENTRY_GROUP_ESTABLISHED:
                     // The entry group has been established successfully.
-                    log_debug("Service:'%s' successfully established.", clientWrapper->getServiceName());
+                    log_debug("Service:'%s' successfully established.", clientWrapper->getServiceName().c_str());
                     break;
                 case AVAHI_ENTRY_GROUP_COLLISION:
                     //TODO
@@ -94,6 +94,9 @@ extern "C" void s_group_callback(AvahiEntryGroup* group, AvahiEntryGroupState st
     }
     catch (std::exception& e) {
         log_error(  "groupCallback exception: %s",e.what() );
+    }
+    catch (...) {
+        log_error( "Unknown groupCallback exception");
     }
 }
 
@@ -245,7 +248,6 @@ AvahiScanFilter::AvahiScanFilter(const std::string &s, const std::string &m, con
 }
 
 AvahiWrapper::AvahiWrapper() :
-    _serviceName(nullptr),
     _txtRecords(nullptr),
     _simplePoll(nullptr),
     _client(nullptr),
@@ -265,7 +267,6 @@ AvahiWrapper::~AvahiWrapper()
     // Free all resources.
     stop();
     if (_txtRecords) avahi_string_list_free(_txtRecords);
-    if (_serviceName) avahi_free(_serviceName);
 }
 
 std::string
@@ -282,10 +283,10 @@ void AvahiWrapper::setServiceDefinition(
     const std::string& service_stype,
     const std::string& port)
 {
-    _serviceName = avahi_strdup( service_name.c_str());
-    _serviceDefinition[SERVICE_TYPE_KEY]    = std::string(service_type);
-    _serviceDefinition[SERVICE_SUBTYPE_KEY] = std::string(service_stype);
-    _serviceDefinition[SERVICE_PORT_KEY]    = std::string(port);
+    _serviceName = service_name;
+    _serviceDefinition[SERVICE_TYPE_KEY]    = service_type;
+    _serviceDefinition[SERVICE_SUBTYPE_KEY] = service_stype;
+    _serviceDefinition[SERVICE_PORT_KEY]    = port;
 }
 
 void AvahiWrapper::clearTxtRecords()
@@ -366,7 +367,7 @@ void AvahiWrapper::printError(const std::string& msg, const char* errorNo)
     avahi_simple_poll_quit(_simplePoll);
 }
 
-AvahiEntryGroup* AvahiWrapper::createService(AvahiClient* client, char* serviceName, map_string_t &serviceDefinition, AvahiStringList *txtRecords)
+AvahiEntryGroup* AvahiWrapper::createService(AvahiClient* client, std::string &serviceName, map_string_t &serviceDefinition, AvahiStringList *txtRecords)
 {
     AvahiEntryGroup *group;
     assert(client);
@@ -380,7 +381,7 @@ AvahiEntryGroup* AvahiWrapper::createService(AvahiClient* client, char* serviceN
     // The group is empty (either because it was just created
     if (avahi_entry_group_is_empty(group)) {
         log_info("Adding service: %s,%s,%s,",
-                serviceName,
+                serviceName.c_str(),
                 serviceDefinition[SERVICE_TYPE_KEY].c_str(),
                 serviceDefinition[SERVICE_PORT_KEY].c_str());
         uint16_t port = 0;
@@ -394,30 +395,31 @@ AvahiEntryGroup* AvahiWrapper::createService(AvahiClient* client, char* serviceN
             AVAHI_IF_UNSPEC,
             AVAHI_PROTO_UNSPEC,
             AvahiPublishFlags(0),
-            serviceName,
+            serviceName.c_str(),
             serviceDefinition[SERVICE_TYPE_KEY].c_str(),
             nullptr,
             nullptr,
             port,
             txtRecords);
-        if (rv== AVAHI_ERR_COLLISION) {
-            char *n = avahi_alternative_service_name(serviceName);
-            log_error( "Service name collision, renaming service from:%s to:%s", serviceName, n);
-            avahi_free(_serviceName);
-            serviceName = n;
+        if (rv == AVAHI_ERR_COLLISION) {
+            char *n = avahi_alternative_service_name(serviceName.c_str());
+            log_error( "Service name collision, renaming service from:%s to:%s", serviceName.c_str(), n);
+            serviceName = std::string(n);
+            _serviceName = serviceName;  // TBD suppress serviceName (and others) from function input parameter
+            avahi_free(n);
             avahi_entry_group_reset(group);
-            return createService(client,serviceName,serviceDefinition,txtRecords); //potential deadlock :(
+            return createService(client, serviceName, serviceDefinition, txtRecords); //potential deadlock :(
         }
         // Add subtype
         log_info("Adding subtype: %s,%s,%s",
-                serviceName,
+                serviceName.c_str(),
                 serviceDefinition[SERVICE_TYPE_KEY].c_str(),
                 serviceDefinition[SERVICE_SUBTYPE_KEY].c_str());
         rv = avahi_entry_group_add_service_subtype(group,
                 AVAHI_IF_UNSPEC,
                 AVAHI_PROTO_UNSPEC,
                 AvahiPublishFlags(0),
-                serviceName,
+                serviceName.c_str(),
                 serviceDefinition[SERVICE_TYPE_KEY].c_str(),
                 nullptr,
                 serviceDefinition[SERVICE_SUBTYPE_KEY].c_str());
@@ -459,7 +461,7 @@ void AvahiWrapper::update()
         AVAHI_IF_UNSPEC,
         AVAHI_PROTO_UNSPEC,
         AvahiPublishFlags(0),
-        _serviceName,
+        _serviceName.c_str(),
         _serviceDefinition[SERVICE_TYPE_KEY].c_str(),
         nullptr, //domain
         _txtRecords);
@@ -566,16 +568,6 @@ bool AvahiWrapper::isFilterService(const std::vector<std::string> &key_value_ser
         }
     }
     return res;
-}
-
-void AvahiWrapper::clientCallback(AvahiClient* client)
-{
-    try {
-        assert(client);
-    }
-    catch (std::exception& e) {
-        log_error( "onClientRunning exception: %s" , e.what() );
-    }
 }
 
 AvahiResolvedServices AvahiWrapper::scanServices(const std::string &type)

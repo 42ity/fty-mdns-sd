@@ -27,6 +27,10 @@
 
 //  Add your own public definitions here, if you need them
 static constexpr const uint WAIT_SERVICE_ANNOUNCEMENT_SEC = 5;
+static constexpr const char* DEFAULT_SERVICE_NAME      = "IPM (default)";
+static constexpr const char* DEFAULT_SERVICE_TYPE      = "_https._tcp.";
+static constexpr const char* DEFAULT_SERVICE_SUB_TYPE  = "_powerservice._sub._https._tcp.";
+static constexpr const char* DEFAULT_SERVICE_PORT      = "443";
 
 static constexpr const char* DEFAULT_LOG_CONFIG        = "/etc/fty/ftylog.cfg";
 static constexpr const char* DEFAULT_SCAN_COMMAND      = "START-SCAN";

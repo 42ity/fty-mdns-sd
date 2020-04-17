@@ -36,14 +36,22 @@ MdnsSdManager::Parameters::Parameters()
 MdnsSdManager::MdnsSdManager(Parameters parameters) :
     m_parameters(parameters),
     m_server(nullptr),
-    m_service(new AvahiWrapper())  // service mDNS-SD
+    m_service(new AvahiWrapper()),  // service mDNS-SD
+    m_countService(0),
+    m_srvName(DEFAULT_SERVICE_NAME),
+    m_srvType(DEFAULT_SERVICE_TYPE),
+    m_srvSubType(DEFAULT_SERVICE_SUB_TYPE),
+    m_srvPort(DEFAULT_SERVICE_PORT)
 {
-    m_countService = 0;
+    m_service->setScanFilter(AvahiScanFilter(
+        m_parameters.scanSubType,
+        m_parameters.scanManufacturer,
+        m_parameters.scanFilterKey,
+        m_parameters.scanFilterValue)
+    );
 }
 
-void MdnsSdManager::init(MdnsSdServer& server) {
-    m_server = &server;
-
+void MdnsSdManager::init() {
     // Start Avahi
     getService()->start();
 
@@ -88,9 +96,23 @@ void MdnsSdManager::doDefaultAnnounce(const uint wait_sec) {
 
 void MdnsSdManager::doDefaultAnnounce()
 {
-    // Get info from fty-info agent
+    // Get announce parameters from fty-info agent (retry #3 before logging error)
     if (m_server) {
-        m_server->pollFtyInfo();
+        int retry = 1;
+        //int retry = 3;
+        while (retry--) {
+            // If no error, stop retry
+            if (m_server->pollFtyInfo() == 0) {
+                break;
+            }
+            // else wait a little before retry
+            if (retry > 0) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
+        }
+        if (retry < 0) {
+            log_error("doDefaultAnnounce: impossible to get fty-info agent parameters");
+        }
     }
     else {
         log_error("doDefaultAnnounce: server not defined");
@@ -133,8 +155,56 @@ void MdnsSdManager::doScan()
 //  --------------------------------------------------------------------------
 //  Self test of this class
 
+//#define AVAHI_DAEMON_RUNNING
+#undef AVAHI_DAEMON_RUNNING
+
 void fty_mdns_sd_manager_test (bool verbose)
 {
+    printf ("fty mdns sd manager test:\n");
+
+#ifdef AVAHI_DAEMON_RUNNING
+    MdnsSdManager::Parameters mdnsSdManagerParameters;
+    mdnsSdManagerParameters.scanStdOut = true;
+    mdnsSdManagerParameters.scanNoPublishBus = true;
+    mdnsSdManagerParameters.scanType = DEFAULT_SCAN_TYPE;
+    mdnsSdManagerParameters.scanSubType = "ipm";
+    mdnsSdManagerParameters.scanFilterKey = "";
+    mdnsSdManagerParameters.scanFilterValue = "";
+
+    // launch manager
+    MdnsSdManager mdnsSdManager(mdnsSdManagerParameters);
+    mdnsSdManager.init();
+
+    zuuid_t *uuid = zuuid_new();
+    std::string strUuid(zuuid_str_canonical(uuid));
+    zuuid_destroy(&uuid);
+
+    std::stringstream buffer;
+    buffer << "IPM TEST (" << strUuid << ")";
+    std::string name = buffer.str();
+    mdnsSdManager.setSrvName(name);
+    mdnsSdManager.setSrvType(DEFAULT_SCAN_TYPE);
+    mdnsSdManager.setSrvSubType("_powerservice._sub._https._tcp.");
+    mdnsSdManager.setMapTxt({{"type", "ipm"}, {"manufacturer", "eaton"}});
+
+    // do default service announcement
+    mdnsSdManager.doAnnounce();
+
+    // redirect stdout for checking scan result
+    buffer.str("");
+    std::streambuf *backup = std::cout.rdbuf(buffer.rdbuf());
+
+    mdnsSdManager.doScan();
+
+    // restore stdout
+    std::cout.rdbuf(backup);
+    std::cout << buffer.str() << std::endl;
+
+    // test if announcement test has been detected during scan
+    // Note: test pass even if avahi daemon not running (local boucle)
+    assert(buffer.str().find("service.name=" + name) != std::string::npos);
+#endif
+
     printf ("fty mdns sd manager test: OK\n");
 }
 

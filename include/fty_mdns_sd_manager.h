@@ -63,8 +63,9 @@ class MdnsSdManager
         void setSrvPort(const std::string srvPort) { m_srvPort = srvPort; };
         void setMapTxt(const std::map<std::string, std::string> mapTxt) { m_mapTxt = mapTxt; };
 
-        void init(MdnsSdServer& server);
-        //void setServer(MdnsSdServer& server) { m_server = &server; };
+        //void init(MdnsSdServer& server);
+        void init();
+        void setServer(MdnsSdServer& server) { m_server = &server; };
         void doDefaultAnnounce();
         void doDefaultAnnounce(const uint wait_sec);
         void doAnnounce();

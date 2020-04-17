@@ -180,7 +180,8 @@ main (int argc, char *argv [])
         // Launch server
         MdnsSdServer mdnsSdServer(mdnsSdServerParameters, mdnsSdManager);
 
-        mdnsSdManager.init(mdnsSdServer);
+        mdnsSdManager.setServer(mdnsSdServer);
+        mdnsSdManager.init();
 
         // If scan manual, do scan and exit program
         if (mdnsSdManagerParameters.scanOnly) {

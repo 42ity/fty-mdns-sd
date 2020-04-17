@@ -379,10 +379,17 @@ AvahiEntryGroup* AvahiWrapper::createService(AvahiClient* client, char* serviceN
     }
     // The group is empty (either because it was just created
     if (avahi_entry_group_is_empty(group)) {
-        log_info("Adding service: %s,%s,%d," ,
+        log_info("Adding service: %s,%s,%s,",
                 serviceName,
                 serviceDefinition[SERVICE_TYPE_KEY].c_str(),
-                std::stoi(serviceDefinition[SERVICE_PORT_KEY].c_str()));
+                serviceDefinition[SERVICE_PORT_KEY].c_str());
+        uint16_t port = 0;
+        try {
+            port = std::stoi(serviceDefinition[SERVICE_PORT_KEY].c_str());
+        }
+        catch (const std::exception& e) {
+            log_error("createService: bad port: %s", e.what());
+        }
         rv = avahi_entry_group_add_service_strlst(group,
             AVAHI_IF_UNSPEC,
             AVAHI_PROTO_UNSPEC,
@@ -391,7 +398,7 @@ AvahiEntryGroup* AvahiWrapper::createService(AvahiClient* client, char* serviceN
             serviceDefinition[SERVICE_TYPE_KEY].c_str(),
             nullptr,
             nullptr,
-            std::stoi(serviceDefinition[SERVICE_PORT_KEY].c_str()),
+            port,
             txtRecords);
         if (rv== AVAHI_ERR_COLLISION) {
             char *n = avahi_alternative_service_name(serviceName);
@@ -418,7 +425,7 @@ AvahiEntryGroup* AvahiWrapper::createService(AvahiClient* client, char* serviceN
             log_error("Failed to add subtype: %s, %s" ,
                     serviceDefinition[SERVICE_SUBTYPE_KEY].c_str(),
                     avahi_strerror(rv));
-            throw std::runtime_error("AFailed to add subtype:");
+            throw std::runtime_error("Failed to add subtype:");
         }
         // Tell the server to register the service.
         rv = avahi_entry_group_commit(group);

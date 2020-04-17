@@ -65,6 +65,7 @@ MdnsSdServer::MdnsSdServer(const Parameters parameters, MdnsSdManager &manager) 
 
 int MdnsSdServer::pollFtyInfo()
 {
+    int res = 0;
     try {
         messagebus::Message message;
 
@@ -79,14 +80,7 @@ int MdnsSdServer::pollFtyInfo()
         message.metaData().emplace(messagebus::Message::TO, "fty-info");
         message.metaData().emplace(messagebus::Message::CORRELATION_ID, uuid);
         message.metaData().emplace(messagebus::Message::REPLY_TO, m_parameters.requesterName);
-        //m_msgBusRequester.get()->sendRequest("fty-info", message);
         messagebus::Message resp = m_msgBusRequester->request("fty-info", message, 10);
-        /*for (const auto &data : resp.userData()) {
-            log_info("data=\"%s\"", data.c_str());
-        }
-        for (const auto &meta : resp.metaData()) {
-            log_info("meta:\"%s=%s\"", meta.first.c_str(), meta.second.c_str());
-        }*/
         if (resp.userData().size() < 7)  {
             throw std::runtime_error("pollFtyInfoAndAnnounce: bad message");
         }
@@ -125,8 +119,9 @@ int MdnsSdServer::pollFtyInfo()
         zframe_destroy(&frame_infos);
     } catch (messagebus::MessageBusException& ex) {
         log_error("%s", ex.what());
+        res = -1;
     }
-    return 0;
+    return res;
 }
 
 void MdnsSdServer::publishMsgNewServices()
@@ -261,8 +256,9 @@ void MdnsSdServer::handleRequestService(messagebus::Message msg, std::string sub
             log_debug("msg.userData().size()=%d msg.metaData().size()=%d", msg.userData().size(), msg.metaData().size());
             std::string uuid_recv;
             std::string message_type;
-            // Note: Consider that it is a legacy message (which come from legacy message bus library) when only "_from" meta data is present
-            bool isLegacyMessage = (msg.metaData().size() == 1 && msg.metaData().find(messagebus::Message::FROM) != msg.metaData().end());
+            // Consider that it is a legacy message (which come from legacy message bus library) when "_raw" meta data is present
+            // Note: In this case, the "_from" meta data ha been added
+            bool isLegacyMessage = (msg.metaData().find(messagebus::Message::RAW) != msg.metaData().end());
             // If legacy message
             if (isLegacyMessage) {
                 if (msg.userData().size() < 3)  {

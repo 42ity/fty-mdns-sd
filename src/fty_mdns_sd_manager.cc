@@ -98,8 +98,7 @@ void MdnsSdManager::doDefaultAnnounce()
 {
     // Get announce parameters from fty-info agent (retry #3 before logging error)
     if (m_server) {
-        int retry = 1;
-        //int retry = 3;
+        int retry = 3;
         while (retry--) {
             // If no error, stop retry
             if (m_server->pollFtyInfo() == 0) {

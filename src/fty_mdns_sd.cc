@@ -1,6 +1,6 @@
 /*  =========================================================================
     fty_mdns_sd - to manage network announcement(mDNS) and discovery (DNS-SD)
-    Copyright (C) 2016 - 2017 Eaton
+    Copyright (C) 2016 - 2020 Eaton
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

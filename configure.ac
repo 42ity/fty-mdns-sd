@@ -497,6 +497,90 @@ dnl END of PKG_CHECK_MODULES and/or direct tests for libmlm
 dnl END of enabled attempts to search for libmlm
 
 
+was_cxxtools_check_lib_detected=no
+
+search_cxxtools="yes"
+
+AC_ARG_WITH([cxxtools],
+    [
+        AS_HELP_STRING([--with-cxxtools],
+        [yes or no. Optionally specify cxxtools prefix (directory where its include/ and lib/ are located), but that is only used if pkgconfig metadata is not found first])
+    ],
+    [
+        search_cxxtools="yes"
+    ],
+    [
+        search_cxxtools="yes"
+    ])
+AS_CASE([x"${with_cxxtools}"],
+    [xyes], [search_cxxtools="yes"],
+    [xno],  [search_cxxtools="no"])
+
+dnl We do not abort right now, because the maintainer/developer may have
+dnl something particular in mind, e.g. to build just parts of a project.
+AS_IF([test x"${search_cxxtools}" = xno],
+    [AC_MSG_WARN([Required dependency on cxxtools was explicitly disabled during configuration by '--with-cxxtools=no'; subsequent full build of fty-mdns-sd may fail])])
+
+AS_IF([test x"${search_cxxtools}" = xyes], [
+    # Archive previously detected and supplied flags
+    PRE_SEARCH_CFLAGS="${CFLAGS}"
+    PRE_SEARCH_LIBS="${LIBS}"
+
+    found_pkgconfig=""
+    PKG_CHECK_MODULES([cxxtools], [cxxtools >= 0.0.0],
+    [
+        was_cxxtools_check_lib_detected=pkgcfg
+        found_pkgconfig="cxxtools"
+    ],
+    [
+        AC_MSG_NOTICE([Package cxxtools not found; falling back to defined compilability tests])
+
+        cxxtools_synthetic_cflags=""
+        cxxtools_synthetic_libs="-lcxxtools"
+
+        if test -n "${with_cxxtools}" && test x"${with_cxxtools}" != xyes && test x"${with_cxxtools}" != xno; then
+            if test -r "${with_cxxtools}/include/cxxtools/allocator.h"; then
+                cxxtools_synthetic_cflags="-I${with_cxxtools}/include"
+                cxxtools_synthetic_libs="-L${with_cxxtools}/lib -lcxxtools"
+            else
+            AC_MSG_ERROR([Header file ${with_cxxtools}/include/cxxtools/allocator.h was not found. Please check cxxtools prefix])
+            fi
+        else
+            AC_CHECK_HEADER([cxxtools/allocator.h], [],
+            AC_MSG_ERROR([Header file cxxtools/allocator.h was not found in default search paths])
+                )
+        fi
+
+        AC_CHECK_LIB([cxxtools], [cxxtools::Utf8Codec::Utf8Codec],
+            [
+                was_cxxtools_check_lib_detected=yes
+                PKGCFG_LIBS_PRIVATE="$PKGCFG_LIBS_PRIVATE -lcxxtools"
+            ],
+            [AC_MSG_ERROR([cannot link with -lcxxtools, install cxxtools])])
+    ])
+
+dnl END of PKG_CHECK_MODULES and/or direct tests for cxxtools
+    AS_CASE(["x${was_cxxtools_check_lib_detected}"],
+        [xpkgcfg], [
+                PKGCFG_NAMES_PRIVATE="$PKGCFG_NAMES_PRIVATE ${found_pkgconfig}"
+                CFLAGS="${cxxtools_CFLAGS} ${CFLAGS}"
+                LIBS="${cxxtools_LIBS} ${LIBS}"
+            ],
+        [xyes], [
+                CFLAGS="${cxxtools_synthetic_cflags} ${CFLAGS}"
+                LDFLAGS="${cxxtools_synthetic_libs} ${LDFLAGS}"
+                LIBS="${cxxtools_synthetic_libs} ${LIBS}"
+
+                AC_SUBST([cxxtools_CFLAGS],[${cxxtools_synthetic_cflags}])
+                AC_SUBST([cxxtools_LIBS],[${cxxtools_synthetic_libs}])
+            ],
+        [xno], [
+            AC_MSG_ERROR([Cannot find pkg-config metadata for cxxtools 0.0.0 or higher])
+    ])
+])
+dnl END of enabled attempts to search for cxxtools
+
+
 was_avahi_client_check_lib_detected=no
 
 search_avahi_client="yes"
@@ -642,88 +726,172 @@ dnl END of PKG_CHECK_MODULES and/or direct tests for libfty_common_logging
 dnl END of enabled attempts to search for libfty_common_logging
 
 
-was_fty_proto_check_lib_detected=no
+was_fty_common_mlm_check_lib_detected=no
 
-search_libfty_proto="yes"
+search_libfty_common_mlm="yes"
 
-AC_ARG_WITH([libfty_proto],
+AC_ARG_WITH([libfty_common_mlm],
     [
-        AS_HELP_STRING([--with-libfty_proto],
-        [yes or no. Optionally specify libfty_proto prefix (directory where its include/ and lib/ are located), but that is only used if pkgconfig metadata is not found first])
+        AS_HELP_STRING([--with-libfty_common_mlm],
+        [yes or no. Optionally specify libfty_common_mlm prefix (directory where its include/ and lib/ are located), but that is only used if pkgconfig metadata is not found first])
     ],
     [
-        search_libfty_proto="yes"
+        search_libfty_common_mlm="yes"
     ],
     [
-        search_libfty_proto="yes"
+        search_libfty_common_mlm="yes"
     ])
-AS_CASE([x"${with_libfty_proto}"],
-    [xyes], [search_libfty_proto="yes"],
-    [xno],  [search_libfty_proto="no"])
+AS_CASE([x"${with_libfty_common_mlm}"],
+    [xyes], [search_libfty_common_mlm="yes"],
+    [xno],  [search_libfty_common_mlm="no"])
 
 dnl We do not abort right now, because the maintainer/developer may have
 dnl something particular in mind, e.g. to build just parts of a project.
-AS_IF([test x"${search_libfty_proto}" = xno],
-    [AC_MSG_WARN([Required dependency on fty_proto was explicitly disabled during configuration by '--with-libfty_proto=no'; subsequent full build of fty-mdns-sd may fail])])
+AS_IF([test x"${search_libfty_common_mlm}" = xno],
+    [AC_MSG_WARN([Required dependency on fty_common_mlm was explicitly disabled during configuration by '--with-libfty_common_mlm=no'; subsequent full build of fty-mdns-sd may fail])])
 
-AS_IF([test x"${search_libfty_proto}" = xyes], [
+AS_IF([test x"${search_libfty_common_mlm}" = xyes], [
     # Archive previously detected and supplied flags
     PRE_SEARCH_CFLAGS="${CFLAGS}"
     PRE_SEARCH_LIBS="${LIBS}"
 
     found_pkgconfig=""
-    PKG_CHECK_MODULES([fty_proto], [libfty_proto >= 1.0.0],
+    PKG_CHECK_MODULES([fty_common_mlm], [libfty_common_mlm >= 0.0.0],
     [
-        was_fty_proto_check_lib_detected=pkgcfg
-        found_pkgconfig="libfty_proto"
+        was_fty_common_mlm_check_lib_detected=pkgcfg
+        found_pkgconfig="libfty_common_mlm"
     ],
     [
-        AC_MSG_NOTICE([Package libfty_proto not found with needed constraints; falling back to defined compilability tests])
+        AC_MSG_NOTICE([Package libfty_common_mlm not found; falling back to defined compilability tests])
 
-        fty_proto_synthetic_cflags=""
-        fty_proto_synthetic_libs="-lfty_proto"
+        fty_common_mlm_synthetic_cflags=""
+        fty_common_mlm_synthetic_libs="-lfty-common-mlm"
 
-        if test -n "${with_libfty_proto}" && test x"${with_libfty_proto}" != xyes && test x"${with_libfty_proto}" != xno; then
-            if test -r "${with_libfty_proto}/include/ftyproto.h"; then
-                fty_proto_synthetic_cflags="-I${with_libfty_proto}/include"
-                fty_proto_synthetic_libs="-L${with_libfty_proto}/lib -lfty_proto"
+        if test -n "${with_libfty_common_mlm}" && test x"${with_libfty_common_mlm}" != xyes && test x"${with_libfty_common_mlm}" != xno; then
+            if test -r "${with_libfty_common_mlm}/include/fty_common_mlm.h"; then
+                fty_common_mlm_synthetic_cflags="-I${with_libfty_common_mlm}/include"
+                fty_common_mlm_synthetic_libs="-L${with_libfty_common_mlm}/lib -lfty-common-mlm"
             else
-            AC_MSG_ERROR([Header file ${with_libfty_proto}/include/ftyproto.h was not found. Please check libfty_proto prefix])
+            AC_MSG_ERROR([Header file ${with_libfty_common_mlm}/include/fty_common_mlm.h was not found. Please check libfty_common_mlm prefix])
             fi
         else
-            AC_CHECK_HEADER([ftyproto.h], [],
-            AC_MSG_ERROR([Header file ftyproto.h was not found in default search paths])
+            AC_CHECK_HEADER([fty_common_mlm.h], [],
+            AC_MSG_ERROR([Header file fty_common_mlm.h was not found in default search paths])
                 )
         fi
 
-        AC_CHECK_LIB([fty_proto], [fty_proto_test],
+        AC_CHECK_LIB([fty-common-mlm], [fty_common_mlm_selftest],
             [
-                was_fty_proto_check_lib_detected=yes
-                PKGCFG_LIBS_PRIVATE="$PKGCFG_LIBS_PRIVATE -lfty_proto"
+                was_fty_common_mlm_check_lib_detected=yes
+                PKGCFG_LIBS_PRIVATE="$PKGCFG_LIBS_PRIVATE -lfty-common-mlm"
             ],
-            [AC_MSG_ERROR([cannot link with -lfty_proto, install libfty_proto])])
+            [AC_MSG_ERROR([cannot link with -lfty-common-mlm, install libfty_common_mlm])])
     ])
 
-dnl END of PKG_CHECK_MODULES and/or direct tests for libfty_proto
-    AS_CASE(["x${was_fty_proto_check_lib_detected}"],
+dnl END of PKG_CHECK_MODULES and/or direct tests for libfty_common_mlm
+    AS_CASE(["x${was_fty_common_mlm_check_lib_detected}"],
         [xpkgcfg], [
-                PKGCFG_NAMES_PRIVATE="$PKGCFG_NAMES_PRIVATE ${found_pkgconfig} >= 1.0.0"
-                CFLAGS="${fty_proto_CFLAGS} ${CFLAGS}"
-                LIBS="${fty_proto_LIBS} ${LIBS}"
+                PKGCFG_NAMES_PRIVATE="$PKGCFG_NAMES_PRIVATE ${found_pkgconfig}"
+                CFLAGS="${fty_common_mlm_CFLAGS} ${CFLAGS}"
+                LIBS="${fty_common_mlm_LIBS} ${LIBS}"
             ],
         [xyes], [
-                CFLAGS="${fty_proto_synthetic_cflags} ${CFLAGS}"
-                LDFLAGS="${fty_proto_synthetic_libs} ${LDFLAGS}"
-                LIBS="${fty_proto_synthetic_libs} ${LIBS}"
+                CFLAGS="${fty_common_mlm_synthetic_cflags} ${CFLAGS}"
+                LDFLAGS="${fty_common_mlm_synthetic_libs} ${LDFLAGS}"
+                LIBS="${fty_common_mlm_synthetic_libs} ${LIBS}"
 
-                AC_SUBST([fty_proto_CFLAGS],[${fty_proto_synthetic_cflags}])
-                AC_SUBST([fty_proto_LIBS],[${fty_proto_synthetic_libs}])
+                AC_SUBST([fty_common_mlm_CFLAGS],[${fty_common_mlm_synthetic_cflags}])
+                AC_SUBST([fty_common_mlm_LIBS],[${fty_common_mlm_synthetic_libs}])
             ],
         [xno], [
-            AC_MSG_ERROR([Cannot find pkg-config metadata for libfty_proto 1.0.0 or higher])
+            AC_MSG_ERROR([Cannot find pkg-config metadata for libfty_common_mlm 0.0.0 or higher])
     ])
 ])
-dnl END of enabled attempts to search for libfty_proto
+dnl END of enabled attempts to search for libfty_common_mlm
+
+
+was_fty_common_messagebus_check_lib_detected=no
+
+search_libfty_common_messagebus="yes"
+
+AC_ARG_WITH([libfty_common_messagebus],
+    [
+        AS_HELP_STRING([--with-libfty_common_messagebus],
+        [yes or no. Optionally specify libfty_common_messagebus prefix (directory where its include/ and lib/ are located), but that is only used if pkgconfig metadata is not found first])
+    ],
+    [
+        search_libfty_common_messagebus="yes"
+    ],
+    [
+        search_libfty_common_messagebus="yes"
+    ])
+AS_CASE([x"${with_libfty_common_messagebus}"],
+    [xyes], [search_libfty_common_messagebus="yes"],
+    [xno],  [search_libfty_common_messagebus="no"])
+
+dnl We do not abort right now, because the maintainer/developer may have
+dnl something particular in mind, e.g. to build just parts of a project.
+AS_IF([test x"${search_libfty_common_messagebus}" = xno],
+    [AC_MSG_WARN([Required dependency on fty_common_messagebus was explicitly disabled during configuration by '--with-libfty_common_messagebus=no'; subsequent full build of fty-mdns-sd may fail])])
+
+AS_IF([test x"${search_libfty_common_messagebus}" = xyes], [
+    # Archive previously detected and supplied flags
+    PRE_SEARCH_CFLAGS="${CFLAGS}"
+    PRE_SEARCH_LIBS="${LIBS}"
+
+    found_pkgconfig=""
+    PKG_CHECK_MODULES([fty_common_messagebus], [libfty_common_messagebus >= 0.0.0],
+    [
+        was_fty_common_messagebus_check_lib_detected=pkgcfg
+        found_pkgconfig="libfty_common_messagebus"
+    ],
+    [
+        AC_MSG_NOTICE([Package libfty_common_messagebus not found; falling back to defined compilability tests])
+
+        fty_common_messagebus_synthetic_cflags=""
+        fty_common_messagebus_synthetic_libs="-lfty-common-messagebus"
+
+        if test -n "${with_libfty_common_messagebus}" && test x"${with_libfty_common_messagebus}" != xyes && test x"${with_libfty_common_messagebus}" != xno; then
+            if test -r "${with_libfty_common_messagebus}/include/fty_common_messagebus.h"; then
+                fty_common_messagebus_synthetic_cflags="-I${with_libfty_common_messagebus}/include"
+                fty_common_messagebus_synthetic_libs="-L${with_libfty_common_messagebus}/lib -lfty-common-messagebus"
+            else
+            AC_MSG_ERROR([Header file ${with_libfty_common_messagebus}/include/fty_common_messagebus.h was not found. Please check libfty_common_messagebus prefix])
+            fi
+        else
+            AC_CHECK_HEADER([fty_common_messagebus.h], [],
+            AC_MSG_ERROR([Header file fty_common_messagebus.h was not found in default search paths])
+                )
+        fi
+
+        AC_CHECK_LIB([fty-common-messagebus], [fty_common_messagebus_selftest],
+            [
+                was_fty_common_messagebus_check_lib_detected=yes
+                PKGCFG_LIBS_PRIVATE="$PKGCFG_LIBS_PRIVATE -lfty-common-messagebus"
+            ],
+            [AC_MSG_ERROR([cannot link with -lfty-common-messagebus, install libfty_common_messagebus])])
+    ])
+
+dnl END of PKG_CHECK_MODULES and/or direct tests for libfty_common_messagebus
+    AS_CASE(["x${was_fty_common_messagebus_check_lib_detected}"],
+        [xpkgcfg], [
+                PKGCFG_NAMES_PRIVATE="$PKGCFG_NAMES_PRIVATE ${found_pkgconfig}"
+                CFLAGS="${fty_common_messagebus_CFLAGS} ${CFLAGS}"
+                LIBS="${fty_common_messagebus_LIBS} ${LIBS}"
+            ],
+        [xyes], [
+                CFLAGS="${fty_common_messagebus_synthetic_cflags} ${CFLAGS}"
+                LDFLAGS="${fty_common_messagebus_synthetic_libs} ${LDFLAGS}"
+                LIBS="${fty_common_messagebus_synthetic_libs} ${LIBS}"
+
+                AC_SUBST([fty_common_messagebus_CFLAGS],[${fty_common_messagebus_synthetic_cflags}])
+                AC_SUBST([fty_common_messagebus_LIBS],[${fty_common_messagebus_synthetic_libs}])
+            ],
+        [xno], [
+            AC_MSG_ERROR([Cannot find pkg-config metadata for libfty_common_messagebus 0.0.0 or higher])
+    ])
+])
+dnl END of enabled attempts to search for libfty_common_messagebus
 
 
 CFLAGS="${PREVIOUS_CFLAGS}"
@@ -1102,7 +1270,6 @@ echo
 echo Configure complete! Now proceed with:
 echo "    - 'make'               compile the project"
 echo "    - 'make check'         run the project's selftest"
-echo "    - 'make check-<test-name>'    run the project's selftest"
 echo "    - 'make install'       install the project to $prefix"
 echo "    - 'make bindings       install enabled language bindings (Python, etc)"
 echo
@@ -1119,7 +1286,7 @@ echo "    - 'make coverage'      generate project's selftest coverage report"
 echo "                           expects --with-gcov option for configure"
 echo "    - 'make clang-format-check'   check if project sources conform"
 echo "                           to style requirements"
-echo "    - 'make clang-format'  modify project sources to conform"
+echo "    - 'make clang-format'         modify project sources to conform"
 echo "                           to style requirements"
 echo "    - 'make clang-format-diff'    modify as above and print 'git diff'"
 echo

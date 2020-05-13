@@ -55,9 +55,11 @@ BuildRequires:  libsodium-devel
 BuildRequires:  zeromq-devel
 BuildRequires:  czmq-devel >= 3.0.2
 BuildRequires:  malamute-devel >= 1.0.0
+BuildRequires:  cxxtools-devel
 BuildRequires:  avahi-devel >= 0.6.31
 BuildRequires:  fty-common-logging-devel
-BuildRequires:  fty-proto-devel >= 1.0.0
+BuildRequires:  fty-common-mlm-devel
+BuildRequires:  fty-common-messagebus-devel
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 
 %description
@@ -85,9 +87,11 @@ Requires:       libsodium-devel
 Requires:       zeromq-devel
 Requires:       czmq-devel >= 3.0.2
 Requires:       malamute-devel >= 1.0.0
+Requires:       cxxtools-devel
 Requires:       avahi-devel >= 0.6.31
 Requires:       fty-common-logging-devel
-Requires:       fty-proto-devel >= 1.0.0
+Requires:       fty-common-mlm-devel
+Requires:       fty-common-messagebus-devel
 
 %description devel
 this service manages network anouncement (mdns) and discovery (dns-sd) development tools

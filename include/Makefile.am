@@ -8,6 +8,7 @@ include_HEADERS = \
 
 if ENABLE_DRAFTS
 include_HEADERS += \
+    fty_mdns_sd_manager.h \
     fty_mdns_sd_server.h
 
 endif

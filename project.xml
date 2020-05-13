@@ -57,6 +57,11 @@
     <use project = "malamute" min_major = "1" test = "mlm_server_test"
         repository = "https://github.com/42ity/malamute.git" />
 
+    <use project = "cxxtools"
+        test = "cxxtools::Utf8Codec::Utf8Codec"
+        header = "cxxtools/allocator.h"
+        repository = "https://github.com/42ity/cxxtools.git"/>
+
     <use project = "avahi-client"
         redhat_name = "avahi-devel"
         debian_name = "libavahi-client-dev"
@@ -69,13 +74,23 @@
         repository = "https://github.com/42ity/fty-common-logging.git"
         test = "fty_common_logging_selftest" />
 
-    <use project = "fty-proto" libname = "libfty_proto" header = "ftyproto.h" prefix = "fty_proto"
-        min_major = "1" min_minor = "0" min_patch = "0"
-        repository = "https://github.com/42ity/fty-proto.git"
-        test = "fty_proto_test" />
+    <!--use project = "fty-common" libname = "libfty_common" header = "fty_common.h"
+        repository = "https://github.com/42ity/fty-common.git"
+        test = "fty_common_selftest" >
+    </use-->
 
-    <class name = "fty-mdns-sd-server">42ity mdns sd server</class>
+    <use project = "fty-common-mlm" libname = "libfty_common_mlm" header = "fty_common_mlm.h"
+        repository = "https://github.com/42ity/fty-common-mlm.git"
+        test = "fty_common_mlm_selftest"/>
+
+    <use project = "fty-common-messagebus" libname = "libfty_common_messagebus" header = "fty_common_messagebus.h"
+        repository = "https://github.com/42ity/fty-common-messagebus.git"
+        test = "fty_common_messagebus_selftest"/>
+
     <class name = "avahi-wrapper" private = "1">Avahi wrapper</class>
+    <class name = "fty-mdns-sd-mapping" private = "1">mdns sd mapping class</class>
+    <class name = "fty-mdns-sd-manager">mdns sd manager</class>
+    <class name = "fty-mdns-sd-server">mdns sd server</class>
 
     <main  name = "fty-mdns-sd" service = "1">mdns sd service</main>
 

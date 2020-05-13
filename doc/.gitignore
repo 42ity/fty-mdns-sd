@@ -11,6 +11,8 @@
 *.xml7
 
 # Ignore the source doc texts generated from program sources
+fty_mdns_sd_manager.txt
+fty_mdns_sd_manager.doc
 fty_mdns_sd_server.txt
 fty_mdns_sd_server.doc
 fty-mdns-sd.txt

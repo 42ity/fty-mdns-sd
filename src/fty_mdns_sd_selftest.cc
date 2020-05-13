@@ -43,10 +43,12 @@ all_tests [] = {
 // Tests for stable/draft private classes:
 // Now built only with --enable-drafts, so even stable builds are hidden behind the flag
     { "avahi_wrapper", NULL, true, false, "avahi_wrapper_test" },
+    { "fty_mdns_sd_mapping", NULL, true, false, "fty_mdns_sd_mapping_test" },
     { "private_classes", NULL, false, false, "$ALL" }, // compat option for older projects
 #endif // FTY_MDNS_SD_BUILD_DRAFT_API
 #ifdef FTY_MDNS_SD_BUILD_DRAFT_API
 // Tests for draft public classes:
+    { "fty_mdns_sd_manager", fty_mdns_sd_manager_test, false, true, NULL },
     { "fty_mdns_sd_server", fty_mdns_sd_server_test, false, true, NULL },
 #endif // FTY_MDNS_SD_BUILD_DRAFT_API
     {NULL, NULL, 0, 0, NULL}          //  Sentinel

@@ -1,19 +1,18 @@
 # fty-mdns-sd
+
 Manages network announcement(mDNS) and discovery (DNS-SD) by collecting
 information from fty-info agent, then publishing it through avahi-deamon
 
 limitation: discovery is not yet managed
 
 ## How to build
-To build fty-mdns-sd project run:
+
+To build, run:
 ```bash
-sudo apt-get install fty-info
-sudo apt-get install avahi-daemon
-sudo apt-get install libavahi-client-dev
-./autogen.sh [clean]
-./configure
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=usr -DBUILD_TESTING=On ..
 make
-make check # to run self-test
+sudo make install
 ```
 
 ## How to run
@@ -23,7 +22,7 @@ To run fty-mdns-sd project:
 * from within the source tree, run:
 
 ```bash
-./src/fty-mdns-sd
+./build/agent/fty-mdns-sd
 ```
 
 For the other options available, refer to the manual page of fty-mdns-sd

@@ -15,7 +15,6 @@ etn_target(static ${PROJECT_NAME}-lib
         avahi-client
         czmq
         mlm
-        fty_proto
         fty_common_logging
     PRIVATE
 )
@@ -33,7 +32,6 @@ if (BUILD_TESTING)
             avahi-client
             czmq
             mlm
-            fty_proto
             fty_common_logging
             Catch2::Catch2
             stdc++fs

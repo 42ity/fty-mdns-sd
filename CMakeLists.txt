@@ -27,7 +27,8 @@ set(AGENT_CONF_FILE ${AGENT_CONF_DIR}/${PROJECT_NAME}.cfg)
 set(res "resources")
 
 ## ipc-meta-setup-avahi.conf -> lib/systemd/system/ipc-meta-setup.service.d/
-install(FILES ${PROJECT_SOURCE_DIR}/${res}/ipc-meta-setup-avahi.conf DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/ipc-meta-setup.service.d/)
+## ZZZ absolute path (no ${CMAKE_INSTALL_PREFIX})
+install(FILES ${PROJECT_SOURCE_DIR}/${res}/ipc-meta-setup-avahi.conf DESTINATION /lib/systemd/system/ipc-meta-setup.service.d/)
 
 ## 10-avahi-lxc.sh -> usr/share/bios/setup
 install(FILES ${PROJECT_SOURCE_DIR}/${res}/10-avahi-lxc.sh DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/bios/setup/)

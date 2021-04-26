@@ -26,22 +26,19 @@
 @author Gerald Guillaume <GeraldGuillaume@eaton.com>
 */
 
-#include "fty_mdns_sd_classes.h"
-#include "avahi_wrapper.h"
-
-#define default_log_config "/etc/fty/ftylog.cfg"
+#include "fty_mdns_sd.h"
+#include "../src/avahi_wrapper.h"
 
 void
 usage(){
     puts ("fty-mdns-sd [options] ...");
     puts ("  -v|--verbose        verbose output");
-    puts ("  -h|--help           this information");
-    puts ("  -c|--config         path to config file\n");
+    puts ("  -c|--config         path to config file");
     puts ("  -e|--endpoint       malamute endpoint [ipc://@/malamute]");
-
+    puts ("  -h|--help           this information");
 }
 
-char*
+static char*
 s_get (zconfig_t *config, const char* key, std::string &dfl) {
     assert (config);
     char *ret = zconfig_get (config, key, dfl.c_str());
@@ -50,7 +47,7 @@ s_get (zconfig_t *config, const char* key, std::string &dfl) {
     return ret;
 }
 
-char*
+static char*
 s_get (zconfig_t *config, const char* key, char*dfl) {
     assert (config);
     char *ret = zconfig_get (config, key, dfl);
@@ -59,26 +56,24 @@ s_get (zconfig_t *config, const char* key, char*dfl) {
     return ret;
 }
 
-
 int
 main (int argc, char *argv [])
 {
+    #define default_log_config FTY_COMMON_LOGGING_DEFAULT_CFG
+
     char *config_file = NULL;
     zconfig_t *config = NULL;
     char *log_config = NULL;
 
     bool verbose = false;
-    int argn;
-
-    log_info ("fty_mdns_sd - started");
-
     char* actor_name = (char*)"fty-mdns-sd";
     char* endpoint = (char*)"ipc://@/malamute";
-    char*fty_info_command = (char*)"INFO";
+    char* fty_info_command = (char*)"INFO";
 
     ManageFtyLog::setInstanceFtylog(actor_name);
 
     //parse command line
+    int argn;
     for (argn = 1; argn < argc; argn++) {
         char *param = NULL;
         if (argn < argc - 1) param = argv [argn+1];
@@ -101,12 +96,12 @@ main (int argc, char *argv [])
         }
         else {
             printf ("Unknown option: %s\n", argv [argn]);
-            return 1;
+            return EXIT_FAILURE;
         }
     }
 
     //parse config file
-    if(config_file){
+    if (config_file) {
         log_debug ("fty_mdns_sd:LOAD: %s", config_file);
         config = zconfig_load (config_file);
         if (!config) {
@@ -117,8 +112,10 @@ main (int argc, char *argv [])
         if (streq (zconfig_get (config, "server/verbose", "false"), "true")) {
             verbose = true;
         }
+
         endpoint = s_get (config, "malamute/endpoint", endpoint);
         actor_name = s_get (config, "malamute/address", actor_name);
+
         fty_info_command = s_get (config, "fty-info/command", fty_info_command);
 
         log_config = zconfig_get (config, "log/config", default_log_config);
@@ -128,25 +125,41 @@ main (int argc, char *argv [])
     }
 
     ManageFtyLog::getInstanceFtylog()->setConfigFile(std::string (log_config));
-    if (verbose)
-        ManageFtyLog::getInstanceFtylog()->setVeboseMode();
+    if (verbose) {
+        ManageFtyLog::getInstanceFtylog()->setVerboseMode();
+    }
+
+    log_info ("fty_mdns_sd - starting...");
 
     zactor_t *server = zactor_new (fty_mdns_sd_server, (void*)actor_name);
-    assert (server);
+    if (!server) {
+        log_fatal("Failed to create server");
+        return EXIT_FAILURE;
+    }
     zstr_sendx (server, "CONNECT", endpoint, NULL);
     zstr_sendx (server, "CONSUMER", "ANNOUNCE", ".*", NULL);
 
     ////do first announcement
     zclock_sleep (5000);
-    zstr_sendx (server, "DO-DEFAULT-ANNOUNCE", fty_info_command,NULL);
+    zstr_sendx (server, "DO-DEFAULT-ANNOUNCE", fty_info_command, NULL);
 
-    while (!zsys_interrupted) {
-        zmsg_t *msg = zactor_recv (server);
-        zmsg_destroy (&msg);
+    log_info ("fty_mdns_sd - started");
+
+    // main loop, accept any message back from server
+    // copy from src/malamute.c under MPL license
+    while (!zsys_interrupted)
+    {
+        char *msg = zstr_recv (server);
+        if (!msg) break;
+
+        log_debug ("Recv msg '%s'", msg);
+        zstr_free (&msg);
     }
+
+    log_info ("fty_mdns_sd - ended");
+
     zactor_destroy (&server);
     zconfig_destroy (&config);
-    log_info ("fty_mdns_sd - exited");
 
     return EXIT_SUCCESS;
 }

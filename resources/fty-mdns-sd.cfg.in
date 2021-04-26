@@ -1,4 +1,4 @@
-#   fty-mdns-sd configuration
+#   @PROJECT_NAME@ configuration
 server
     verbose = true      #   To setup verbose
 

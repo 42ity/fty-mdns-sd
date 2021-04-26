@@ -90,7 +90,6 @@ void AvahiWrapper::setTxtRecords(zhash_t *map)
     }
 }
 
-
 void AvahiWrapper::setHostName(const std::string& name)
 {
     avahi_client_set_host_name(_client, name.c_str());
@@ -118,8 +117,6 @@ void AvahiWrapper::stop()
     _group = nullptr;
     _client = nullptr;
     _simplePoll=nullptr;
-
-
 }
 
 void AvahiWrapper::printError(const std::string& msg, const char* errorNo)
@@ -127,7 +124,6 @@ void AvahiWrapper::printError(const std::string& msg, const char* errorNo)
     log_error("avahi error %s %s", msg.c_str(), errorNo);
     avahi_simple_poll_quit(_simplePoll);
 }
-
 
 AvahiEntryGroup* AvahiWrapper::create_service(AvahiClient* client,char* serviceName,map_string_t &serviceDefinition,AvahiStringList *txtRecords)
 {
@@ -217,7 +213,6 @@ void AvahiWrapper::update()
     }
 }
 
-
 void AvahiWrapper::onClientRunning(AvahiClient* client)
 {
     try {
@@ -290,7 +285,6 @@ void AvahiWrapper::groupCallback(AvahiEntryGroup* group, AvahiEntryGroupState st
                 case AVAHI_ENTRY_GROUP_REGISTERING:
                     ;
             }
-
         }
     }
     catch (std::exception& e) {
@@ -299,5 +293,11 @@ void AvahiWrapper::groupCallback(AvahiEntryGroup* group, AvahiEntryGroupState st
 }
 
 void avahi_wrapper_test (bool verbose) {
-    printf ("Avahi wrapper test\n");
+    printf (" * Avahi wrapper test\n");
+
+    {
+        AvahiWrapper aw;
+    }
+
+    printf (" * Avahi wrapper test: OK\n");
 }

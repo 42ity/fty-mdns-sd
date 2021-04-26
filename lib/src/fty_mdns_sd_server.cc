@@ -27,13 +27,10 @@
 */
 
 #include "fty_mdns_sd_classes.h"
-#include "avahi_wrapper.h"
 
 #define TIMEOUT_MS 5000   //wait at least 5 seconds
 
 //  Structure of our class
-
-
 struct _fty_mdns_sd_server_t {
     char *name;              // actor name
     mlm_client_t *client;    // malamute client
@@ -48,6 +45,8 @@ struct _fty_mdns_sd_server_t {
     //TXT attributes
     zhash_t *map_txt;
 };
+
+typedef struct _fty_mdns_sd_server_t fty_mdns_sd_server_t;
 
 //free dynamic item
 static void s_destroy_txt(void *arg)
@@ -96,7 +95,6 @@ s_set_srv_port(fty_mdns_sd_server_t *self,const char *value)
     zstr_free (&self->srv_port);
     char *_value = strdup(value);
     self->srv_port = _value;
-
 }
 
 static void
@@ -107,7 +105,6 @@ s_set_srv_type(fty_mdns_sd_server_t *self,const char *value)
     zstr_free (&self->srv_type);
     char *_value = strdup(value);
     self->srv_type = _value;
-
 }
 
 static void
@@ -118,7 +115,6 @@ s_set_srv_stype(fty_mdns_sd_server_t *self,const char *value)
     zstr_free (&self->srv_stype);
     char *_value = strdup(value);
     self->srv_stype = _value;
-
 }
 
 //  --------------------------------------------------------------------------
@@ -144,7 +140,6 @@ fty_mdns_sd_server_new (const char* name)
         "00000000-0000-0000-0000-000000000000");
     return self;
 }
-
 
 //  --------------------------------------------------------------------------
 //  Destroy the fty_mdns_sd_server
@@ -458,9 +453,8 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
 void
 fty_mdns_sd_server_test (bool verbose)
 {
-    printf (" * fty_mdns_sd_server: ");
+    printf (" * fty_mdns_sd_server: \n");
 
-    //  @selftest
     //  Simple create/destroy test
 
     zactor_t *server = zactor_new (fty_mdns_sd_server, (void*)"fty-mdns-sd-test");
@@ -469,7 +463,6 @@ fty_mdns_sd_server_test (bool verbose)
     zstr_sendx (server, "CONNECT", "ipc://@/malamute", NULL);
 
     zclock_sleep (1000);
-
 
     zstr_sendx (server, "SET-DEFAULT-SERVICE",
             "IPC (12345678)","_https._tcp.","_powerservice._sub._https._tcp.","443", NULL);
@@ -481,6 +474,6 @@ fty_mdns_sd_server_test (bool verbose)
     //zstr_sendx (server, "DO-DEFAULT-ANNOUNCE", "INFO",NULL);
 
     zactor_destroy (&server);
-    //  @end
-    printf ("OK\n");
+
+    printf (" * fty_mdns_sd_server: OK\n");
 }

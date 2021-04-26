@@ -31,7 +31,6 @@
 #include <cstddef>
 #include <map>
 
-
 #include <avahi-client/client.h>
 #include <avahi-client/publish.h>
 #include <avahi-common/alternative.h>
@@ -104,4 +103,8 @@ protected:
 
     static void groupCallback(AvahiEntryGroup* group, AvahiEntryGroupState state, void *userdata);
 };
+
+//  Self test of this class.
+void avahi_wrapper_test (bool verbose);
+
 #endif

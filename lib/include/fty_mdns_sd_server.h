@@ -22,20 +22,17 @@
 #ifndef FTY_MDNS_SD_SERVER_H_INCLUDED
 #define FTY_MDNS_SD_SERVER_H_INCLUDED
 
+#include <czmq.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-//  @interface
 //  fty_mdns_sd_server actor
-FTY_MDNS_SD_EXPORT void
-    fty_mdns_sd_server (zsock_t *pipe, void *args);
+void fty_mdns_sd_server (zsock_t *pipe, void *args);
 
 //  Self test of this class
-FTY_MDNS_SD_EXPORT void
-    fty_mdns_sd_server_test (bool verbose);
-
-//  @end
+void fty_mdns_sd_server_test (bool verbose);
 
 #ifdef __cplusplus
 }

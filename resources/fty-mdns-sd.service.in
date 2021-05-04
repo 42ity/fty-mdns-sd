@@ -1,5 +1,5 @@
 [Unit]
-Description=fty-mdns-sd service: make this system discoverable via AVAHI
+Description=@PROJECT_NAME@ service: make this system discoverable via AVAHI
 After=malamute.service network.target fty-info.service avahi-daemon.service
 Requires=malamute.service network.target fty-info.service avahi-daemon.service
 Conflicts=rescue.target shutdown.target poweroff.target halt.target reboot.target emergency.target
@@ -17,18 +17,21 @@ PartOf=bios-pre-eula.target
 
 [Service]
 Type=simple
-User=bios
+User=@AGENT_USER@
 Restart=always
-EnvironmentFile=-@prefix@/share/bios/etc/default/bios
-EnvironmentFile=-@prefix@/share/bios/etc/default/bios__%n.conf
-EnvironmentFile=-@prefix@/share/fty/etc/default/fty
-EnvironmentFile=-@prefix@/share/fty/etc/default/fty__%n.conf
-EnvironmentFile=-@sysconfdir@/default/bios
-EnvironmentFile=-@sysconfdir@/default/bios__%n.conf
-EnvironmentFile=-@sysconfdir@/default/fty
-EnvironmentFile=-@sysconfdir@/default/fty__%n.conf
-Environment="prefix=@prefix@"
-ExecStart=@prefix@/bin/fty-mdns-sd -c @sysconfdir@/@PACKAGE@/fty-mdns-sd.cfg
+
+Environment='SYSTEMD_UNIT_FULLNAME=%n'
+Environment="prefix=/usr"
+EnvironmentFile=-/usr/share/bios/etc/default/bios
+EnvironmentFile=-/usr/share/bios/etc/default/bios__%n.conf
+EnvironmentFile=-/usr/share/fty/etc/default/fty
+EnvironmentFile=-/usr/share/fty/etc/default/fty__%n.conf
+EnvironmentFile=-/etc/default/bios
+EnvironmentFile=-/etc/default/bios__%n.conf
+EnvironmentFile=-/etc/default/fty
+EnvironmentFile=-/etc/default/fty__%n.conf
+
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/@PROJECT_NAME@ -c @AGENT_CONF_FILE@
 
 [Install]
 WantedBy=bios-pre-eula.target

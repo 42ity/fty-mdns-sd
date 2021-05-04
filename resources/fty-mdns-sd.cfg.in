@@ -1,0 +1,13 @@
+#   @PROJECT_NAME@ configuration
+server
+    verbose = true      #   To setup verbose
+
+fty-info
+    command = INFO
+
+malamute
+    endpoint = ipc://@/malamute     #   Malamute endpoint
+    address = fty-mdns-sd           #   Agent mdns-sd address=
+
+#log
+#    config = /etc/fty/ftylog.cfg

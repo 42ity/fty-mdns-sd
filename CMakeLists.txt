@@ -4,8 +4,8 @@ cmake_policy(VERSION 3.13)
 ##############################################################################################################
 
 project(fty-mdns-sd
-  DESCRIPTION "Manages network announcement (mDNS) and discovery (DNS-SD)"
   VERSION 1.0.0
+  DESCRIPTION "Manages network announcement (mDNS) and discovery (DNS-SD)"
 )
 
 ########################################################################################################################

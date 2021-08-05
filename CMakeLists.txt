@@ -31,7 +31,7 @@ set(res "resources")
 install(FILES ${PROJECT_SOURCE_DIR}/${res}/ipc-meta-setup-avahi.conf DESTINATION /lib/systemd/system/ipc-meta-setup.service.d/)
 
 ## 10-avahi-lxc.sh -> usr/share/bios/setup
-install(FILES ${PROJECT_SOURCE_DIR}/${res}/10-avahi-lxc.sh DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/bios/setup/)
+install(PROGRAMS ${PROJECT_SOURCE_DIR}/${res}/10-avahi-lxc.sh DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/bios/setup/)
 
 ## cfg -> etc/
 set(file ${PROJECT_NAME}.cfg)

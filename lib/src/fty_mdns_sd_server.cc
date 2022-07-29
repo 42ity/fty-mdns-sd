@@ -186,11 +186,15 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
         zuuid_destroy(&uuid);
         return -2;
     }
+    zmsg_destroy(&send);
 
-    zmsg_t *resp = mlm_client_recv(self->client);
+    zpoller_t* poller = zpoller_new(mlm_client_msgpipe(self->client), NULL);
+    zmsg_t *resp = (poller && zpoller_wait(poller, 5000)) ? mlm_client_recv(self->client) : NULL;
+    zpoller_destroy(&poller);
     if (!resp)
     {
         log_error ("info: client->recv (timeout = '5') returned NULL");
+        zuuid_destroy(&uuid);
         return -3;
     }
 
@@ -198,11 +202,14 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
     assert(strneq (zuuid_or_error, "ERROR"));
     //TODO : check UUID if you think it is important
     zstr_free(&zuuid_or_error);
+
     zuuid_destroy(&uuid);
 
     char *cmd = zmsg_popstr (resp);
-    if(strneq (cmd, "INFO")) {
+    if(!cmd || strneq (cmd, "INFO")) {
         log_error ("%s: not received INFO command (%s)", __func__, cmd);
+        zstr_free (&cmd);
+        zmsg_destroy(&resp);
         return -4;
     }
     char *srv_name  = zmsg_popstr (resp);
@@ -220,6 +227,7 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
     s_set_txt_records(self,infos);
 
     zhash_destroy(&infos);
+    zframe_destroy(&frame_infos);
     zstr_free (&cmd);
     zstr_free (&srv_name);
     zstr_free (&srv_type);

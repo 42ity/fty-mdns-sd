@@ -227,7 +227,6 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
     s_set_txt_records(self,infos);
 
     zhash_destroy(&infos);
-    zframe_destroy(&frame_infos);
     zstr_free (&cmd);
     zstr_free (&srv_name);
     zstr_free (&srv_type);

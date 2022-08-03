@@ -183,8 +183,6 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
     log_debug ("requesting fty-info ..");
     int r = mlm_client_sendto(self->client, "fty-info", "info", NULL, 1000, &msg);
     zmsg_destroy(&msg);
-    zuuid_destroy(&uuid);
-    uuid_sent = NULL;
     if (r != 0) {
         log_error("info: client->sendto (address = '%s') failed.", "fty-info");
         return -2;
@@ -197,27 +195,37 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
         zpoller_destroy(&poller);
         if (!msg) {
             log_error ("info: client->recv (timeout = '5') returned NULL");
+            zuuid_destroy(&uuid);
             return -3;
         }
     }
 
     {
-        //TODO : check UUID if you think it is important
-        char *zuuid_or_error = zmsg_popstr (msg);
-        if (!zuuid_or_error) zuuid_or_error = strdup("ERROR");
-        if (streq(zuuid_or_error, "ERROR")) {
-            log_error ("info: client->recv (timeout = '5') returned ERROR");
-            zstr_free(&zuuid_or_error);
+        char *uuid_recv = zmsg_popstr (msg);
+        if (!uuid_recv || streq(uuid_recv, "ERROR")) {
+            log_error ("info: client->recv returns %s", uuid_recv);
+            zstr_free(&uuid_recv);
             zmsg_destroy(&msg);
+            zuuid_destroy(&uuid);
             return -4;
         }
-        zstr_free(&zuuid_or_error);
+        if (!streq(uuid_recv, uuid_sent)) {
+            log_error ("info: client->recv uuid mismatch (sent: %s, recv: %s)", uuid_sent, uuid_recv);
+            zstr_free(&uuid_recv);
+            zmsg_destroy(&msg);
+            zuuid_destroy(&uuid);
+            return -4;
+        }
+        zstr_free(&uuid_recv);
     }
+
+    zuuid_destroy(&uuid); // useless
+    uuid_sent = NULL;
 
     {
         char *cmd = zmsg_popstr (msg);
-        if (strneq (cmd, "INFO")) {
-            log_error ("%s: not received INFO command (%s)", __func__, cmd);
+        if (!cmd || !streq(cmd, "INFO")) {
+            log_error ("info: client->recv returns %s command", cmd);
             zstr_free (&cmd);
             zmsg_destroy(&msg);
             return -4;
@@ -272,15 +280,13 @@ bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
     if (!command) {
         log_warning ("Empty command.");
     }
-    else
-    if (streq(command, "$TERM")) {
+    else if (streq(command, "$TERM")) {
         log_info ("Got $TERM");
         zmsg_destroy (message_p);
         zstr_free (&command);
         continue_ = false;
     }
-    else
-    if (streq (command, "CONNECT")) {
+    else if (streq (command, "CONNECT")) {
         char *endpoint = zmsg_popstr (message);
         if (!endpoint)
             log_error ("%s:\tMissing endpoint", self->name);
@@ -291,8 +297,7 @@ bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         log_debug("fty-mdns-sd-server: CONNECT %s/%s",endpoint,self->name);
         zstr_free (&endpoint);
     }
-    else
-    if (streq (command, "CONSUMER")) {
+    else if (streq (command, "CONSUMER")) {
         char *stream = zmsg_popstr (message);
         char *pattern = zmsg_popstr (message);
         if (stream && pattern) {
@@ -308,8 +313,7 @@ bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         zstr_free (&stream);
         zstr_free (&pattern);
     }
-    else
-    if (streq (command, "SET-DEFAULT-SERVICE")) {
+    else if (streq (command, "SET-DEFAULT-SERVICE")) {
          //set new ones
         char *name  = zmsg_popstr (message);
         char *type  = zmsg_popstr (message);
@@ -326,8 +330,7 @@ bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         zstr_free(&stype);
         zstr_free(&port);
     }
-    else
-    if (streq (command, "SET-DEFAULT-TXT")) {
+    else if (streq (command, "SET-DEFAULT-TXT")) {
         char *key   = zmsg_popstr (message);
         char *value = zmsg_popstr (message);
         log_debug("fty-mdns-sd-server: SET-DEFAULT-TXT %s=%s",
@@ -336,27 +339,22 @@ bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         zstr_free(&key);
         zstr_free(&value);
     }
-    else
-    if (streq (command, "DO-DEFAULT-ANNOUNCE")) {
+    else if (streq (command, "DO-DEFAULT-ANNOUNCE")) {
         //free previous value
         zstr_free (&self->fty_info_command);
         //get info from fty-info
         self->fty_info_command = zmsg_popstr (message);
-        log_debug("fty-mdns-sd-server: DO-DEFAULT-ANNOUNCE %s",
-                self->fty_info_command);
+        log_debug("fty-mdns-sd-server: DO-DEFAULT-ANNOUNCE %s", self->fty_info_command);
         int rv = -1;
         int tries = 3;
         while (tries-- >= 0) {
-            rv=s_poll_fty_info(self);
+            rv = s_poll_fty_info(self);
             if (rv == 0)
                 break;
-            // Wait 5 seconds before retrying
-            if (tries == 0)
-                zclock_sleep (5000);
         }
         // sanity check, this should trigger a service abort then restart
         // in the worst case, if we did not succeeded after 3 tries
-        assert(rv==0);
+        assert(rv == 0);
         self->service->setServiceDefinition(
             self->srv_name,
             self->srv_type,
@@ -382,6 +380,9 @@ bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
 static
 void s_handle_stream(fty_mdns_sd_server_t* self, zmsg_t **message_p)
 {
+    if (!(message_p && *message_p))
+        return; // secured
+
     zmsg_t *message = *message_p;
     char *cmd = zmsg_popstr (message);
 
@@ -409,16 +410,17 @@ void s_handle_stream(fty_mdns_sd_server_t* self, zmsg_t **message_p)
             }
             zhash_destroy (&infos);
             zframe_destroy (&infosframe);
+
+            zstr_free(&srv_name);
             zstr_free(&srv_type);
             zstr_free(&srv_stype);
             zstr_free(&srv_port);
-            zstr_free (&srv_name);
         }
         else {
             log_error ("Unknown command %s", cmd);
         }
-        zstr_free (&cmd);
     }
+    zstr_free (&cmd);
     zmsg_destroy (message_p);
 }
 

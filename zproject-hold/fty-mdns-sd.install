@@ -1,4 +1,0 @@
-usr/bin/fty-mdns-sd
-etc/fty-mdns-sd/fty-mdns-sd.cfg
-lib/systemd/system/fty-mdns-sd.service
-

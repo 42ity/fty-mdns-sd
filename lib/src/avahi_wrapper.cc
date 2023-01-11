@@ -82,11 +82,11 @@ void AvahiWrapper::setTxtRecords(zhash_t *map)
 {
     if (!map) return;
     clearTxtRecords ();
-    char *value = (char *) zhash_first (map);
+    void *value = zhash_first (map);
     while (value) {
-        const char *key = (char *) zhash_cursor (map);
-        setTxtRecord (key, value);
-        value = (char *) zhash_next (map);
+        const char *key = zhash_cursor (map);
+        setTxtRecord (key, static_cast<char*>(value));
+        value = zhash_next (map);
     }
 }
 
@@ -142,7 +142,8 @@ AvahiEntryGroup* AvahiWrapper::create_service(AvahiClient* client,char* serviceN
                 serviceName,
                 serviceDefinition[SERVICE_TYPE_KEY].c_str(),
                 std::stoi(serviceDefinition[SERVICE_PORT_KEY].c_str()));
-        rv = avahi_entry_group_add_service_strlst(group,
+        rv = avahi_entry_group_add_service_strlst(
+            group,
             AVAHI_IF_UNSPEC,
             AVAHI_PROTO_UNSPEC,
             AvahiPublishFlags(0),
@@ -150,8 +151,9 @@ AvahiEntryGroup* AvahiWrapper::create_service(AvahiClient* client,char* serviceN
             serviceDefinition[SERVICE_TYPE_KEY].c_str(),
             nullptr,
             nullptr,
-            std::stoi(serviceDefinition[SERVICE_PORT_KEY].c_str()),
-            txtRecords);
+            uint16_t(std::stoi(serviceDefinition[SERVICE_PORT_KEY].c_str())),
+            txtRecords
+        );
         if (rv== AVAHI_ERR_COLLISION) {
             char *n = avahi_alternative_service_name(serviceName);
             log_error( "Service name collision, renaming service from:%s to:%s" ,serviceName,n );
@@ -228,7 +230,7 @@ void AvahiWrapper::clientCallback(AvahiClient* client, AvahiClientState state, v
 {
     try {
         if (userdata != nullptr) {
-            AvahiWrapper* clientWrapper = (AvahiWrapper*) userdata;
+            AvahiWrapper* clientWrapper = static_cast<AvahiWrapper*>(userdata);
             switch (state) {
 
                 case AVAHI_CLIENT_S_RUNNING:
@@ -266,7 +268,7 @@ void AvahiWrapper::groupCallback(AvahiEntryGroup* group, AvahiEntryGroupState st
 {
     try {
         if (userdata != nullptr) {
-            AvahiWrapper* clientWrapper = (AvahiWrapper*) userdata;
+            AvahiWrapper* clientWrapper = static_cast<AvahiWrapper*>(userdata);
 
             switch (state) {
                 case AVAHI_ENTRY_GROUP_ESTABLISHED:
@@ -283,7 +285,8 @@ void AvahiWrapper::groupCallback(AvahiEntryGroup* group, AvahiEntryGroupState st
 
                 case AVAHI_ENTRY_GROUP_UNCOMMITED:
                 case AVAHI_ENTRY_GROUP_REGISTERING:
-                    ;
+                default:
+                    break;
             }
         }
     }
@@ -292,7 +295,7 @@ void AvahiWrapper::groupCallback(AvahiEntryGroup* group, AvahiEntryGroupState st
     }
 }
 
-void avahi_wrapper_test (bool verbose) {
+void avahi_wrapper_test (bool /*verbose*/) {
     printf (" * Avahi wrapper test\n");
 
     {

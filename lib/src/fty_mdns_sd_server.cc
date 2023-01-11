@@ -49,107 +49,92 @@ typedef struct _fty_mdns_sd_server_t fty_mdns_sd_server_t;
 //free dynamic item
 static void s_destroy_txt(void *arg)
 {
-    char *value = static_cast<char*>(arg);
-    zstr_free(&value);
+    if (arg) {
+        free(static_cast<char*>(arg));
+    }
 }
 
-static void
-s_set_txt_record(fty_mdns_sd_server_t *self,const char *key,const char *value)
+static void s_set_txt_record(fty_mdns_sd_server_t *self,const char *key,const char *value)
 {
-    if(value==NULL) return;
+    if (!value) return;
     log_debug ("s_set_txt_record(%s,%s)",key,value);
     char *_value = strdup(value);
-    int rv=zhash_insert(self->map_txt,key,_value);
-    if(rv==-1)
+    int rv = zhash_insert(self->map_txt,key,_value);
+    if (rv==-1) {
         zhash_update(self->map_txt,key,_value);
+    }
     zhash_freefn(self->map_txt,key,s_destroy_txt);
 }
 
-static void
-s_set_txt_records(fty_mdns_sd_server_t *self, zhash_t * map_txt)
+static void s_set_txt_records(fty_mdns_sd_server_t *self, zhash_t * map_txt)
 {
-    if(map_txt==NULL) return;
-    if(self->map_txt!=NULL)
-        zhash_destroy (&self->map_txt);
+    if (!map_txt) return;
+    zhash_destroy (&self->map_txt);
     self->map_txt = zhash_dup(map_txt);
 }
 
-static void
-s_set_srv_name(fty_mdns_sd_server_t *self,const char *value)
+static void s_set_srv_name(fty_mdns_sd_server_t *self,const char *value)
 {
-    if(value==NULL) return;
-    //delete previous dyn value
+    if (!value) return;
     zstr_free (&self->srv_name);
-    char *_value = strdup(value);
-    self->srv_name = _value;
+    self->srv_name = strdup(value);
 
 }
 
-static void
-s_set_srv_port(fty_mdns_sd_server_t *self,const char *value)
+static void s_set_srv_port(fty_mdns_sd_server_t *self,const char *value)
 {
-    if(value==NULL) return;
-    //delete previous dyn value
+    if (!value) return;
     zstr_free (&self->srv_port);
-    char *_value = strdup(value);
-    self->srv_port = _value;
+    self->srv_port = strdup(value);
 }
 
-static void
-s_set_srv_type(fty_mdns_sd_server_t *self,const char *value)
+static void s_set_srv_type(fty_mdns_sd_server_t *self,const char *value)
 {
-    if(value==NULL) return;
-    //delete previous dyn value
+    if (!value) return;
     zstr_free (&self->srv_type);
-    char *_value = strdup(value);
-    self->srv_type = _value;
+    self->srv_type = strdup(value);
 }
 
-static void
-s_set_srv_stype(fty_mdns_sd_server_t *self,const char *value)
+static void s_set_srv_stype(fty_mdns_sd_server_t *self,const char *value)
 {
-    if(value==NULL) return;
-    //delete previous dyn value
+    if (!value) return;
     zstr_free (&self->srv_stype);
-    char *_value = strdup(value);
-    self->srv_stype = _value;
+    self->srv_stype = strdup(value);
 }
 
 //  --------------------------------------------------------------------------
 //  Create a new fty_mdns_sd_server
-static fty_mdns_sd_server_t *
-fty_mdns_sd_server_new (const char* name)
+static fty_mdns_sd_server_t* fty_mdns_sd_server_new (const char* name)
 {
+    if (!name) {
+        log_error ("name is NULL");
+        return NULL;
+    }
+
     fty_mdns_sd_server_t *self = (fty_mdns_sd_server_t *) zmalloc (sizeof (fty_mdns_sd_server_t));
     if (!self)
         return NULL;
 
     //  Initialize class properties here
-    if (!name) {
-        log_error ("Address for fty_mdns_sd actor is NULL");
-        free (self);
-        return NULL;
-    }
     self->name    = strdup (name);
     self->client  = mlm_client_new();
     self->service = new AvahiWrapper(); // service mDNS-SD
     self->map_txt = zhash_new();
 
     //do minimal initialization
-    s_set_txt_record(self,"uuid",
-        "00000000-0000-0000-0000-000000000000");
+    s_set_txt_record(self, "uuid", "00000000-0000-0000-0000-000000000000");
+
     return self;
 }
 
 //  --------------------------------------------------------------------------
 //  Destroy the fty_mdns_sd_server
 
-static void
-fty_mdns_sd_server_destroy (fty_mdns_sd_server_t **self_p)
+static void fty_mdns_sd_server_destroy (fty_mdns_sd_server_t **self_p)
 {
-    assert (self_p);
-    if (*self_p) {
+    if (self_p && (*self_p)) {
         fty_mdns_sd_server_t *self = *self_p;
+
         //  Free class properties here
         zstr_free (&self->name);
         zstr_free (&self->srv_name);
@@ -159,7 +144,8 @@ fty_mdns_sd_server_destroy (fty_mdns_sd_server_t **self_p)
         zstr_free (&self->fty_info_command);
         mlm_client_destroy (&self->client);
         zhash_destroy (&self->map_txt);
-        delete self->service;
+        if (self->service) delete self->service;
+
         //  Free object itself
         free (self);
         *self_p = NULL;
@@ -169,8 +155,7 @@ fty_mdns_sd_server_destroy (fty_mdns_sd_server_t **self_p)
 //  --------------------------------------------------------------------------
 //  get info from fty-info agent
 
-static int
-s_poll_fty_info(fty_mdns_sd_server_t *self)
+static int s_poll_fty_info(fty_mdns_sd_server_t *self)
 {
     assert (self);
 
@@ -178,13 +163,14 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
     const char* uuid_sent = zuuid_str_canonical (uuid);
 
     zmsg_t *msg = zmsg_new ();
-    zmsg_addstr (msg, self->fty_info_command);
+    zmsg_addstr (msg, self->fty_info_command ? self->fty_info_command : "INFO");
     zmsg_addstr (msg, uuid_sent);
     log_debug ("requesting fty-info ..");
     int r = mlm_client_sendto(self->client, "fty-info", "info", NULL, 1000, &msg);
     zmsg_destroy(&msg);
     if (r != 0) {
         log_error("info: client->sendto (address = '%s') failed.", "fty-info");
+        zuuid_destroy(&uuid);
         return -2;
     }
 
@@ -265,8 +251,7 @@ s_poll_fty_info(fty_mdns_sd_server_t *self)
 //  --------------------------------------------------------------------------
 //  process pipe message
 //  return true means continue, false means TERM
-static
-bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
+static bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
 {
     bool continue_ = true;
 
@@ -288,12 +273,14 @@ bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
     }
     else if (streq (command, "CONNECT")) {
         char *endpoint = zmsg_popstr (message);
-        if (!endpoint)
+        if (!endpoint) {
             log_error ("%s:\tMissing endpoint", self->name);
+        }
         assert (endpoint);
         int r = mlm_client_connect (self->client, endpoint, 5000, self->name);
-        if (r == -1)
+        if (r == -1) {
             log_error ("%s:\tConnection to endpoint '%s' failed", self->name, endpoint);
+        }
         log_debug("fty-mdns-sd-server: CONNECT %s/%s",endpoint,self->name);
         zstr_free (&endpoint);
     }
@@ -301,13 +288,13 @@ bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         char *stream = zmsg_popstr (message);
         char *pattern = zmsg_popstr (message);
         if (stream && pattern) {
-            log_debug("fty-mdns-sd-server: CONSUMER [%s,%s]",
-                    stream,pattern) ;
+            log_debug("fty-mdns-sd-server: CONSUMER [%s,%s]", stream,pattern) ;
             int r = mlm_client_set_consumer (self->client, stream, pattern);
             if (r == -1) {
                 log_error ("%s:\tSet consumer to '%s' with pattern '%s' failed", self->name, stream, pattern);
             }
-        } else {
+        }
+        else {
             log_error ("%s:\tMissing params in CONSUMER command", self->name);
         }
         zstr_free (&stream);
@@ -319,12 +306,13 @@ bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         char *type  = zmsg_popstr (message);
         char *stype = zmsg_popstr (message);
         char *port  = zmsg_popstr (message);
-        log_debug("fty-mdns-sd-server: SET-DEFAULT-SERVICE [%s,%s,%s,%s]",
-            name,type,stype,port) ;
-        s_set_srv_name(self,name);
-        s_set_srv_type(self,type);
-        s_set_srv_stype(self,stype);
-        s_set_srv_port(self,port);
+        log_debug("fty-mdns-sd-server: SET-DEFAULT-SERVICE [%s,%s,%s,%s]", name, type, stype, port) ;
+
+        s_set_srv_name(self, name);
+        s_set_srv_type(self, type);
+        s_set_srv_stype(self, stype);
+        s_set_srv_port(self, port);
+
         zstr_free(&name);
         zstr_free(&type);
         zstr_free(&stype);
@@ -333,18 +321,16 @@ bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
     else if (streq (command, "SET-DEFAULT-TXT")) {
         char *key   = zmsg_popstr (message);
         char *value = zmsg_popstr (message);
-        log_debug("fty-mdns-sd-server: SET-DEFAULT-TXT %s=%s",
-            key,value) ;
-        s_set_txt_record(self,key,value);
+        log_debug("fty-mdns-sd-server: SET-DEFAULT-TXT %s=%s", key, value) ;
+        s_set_txt_record(self, key, value);
         zstr_free(&key);
         zstr_free(&value);
     }
     else if (streq (command, "DO-DEFAULT-ANNOUNCE")) {
-        //free previous value
         zstr_free (&self->fty_info_command);
-        //get info from fty-info
         self->fty_info_command = zmsg_popstr (message);
         log_debug("fty-mdns-sd-server: DO-DEFAULT-ANNOUNCE %s", self->fty_info_command);
+
         int rv = -1;
         int tries = 3;
         while (tries-- >= 0) {
@@ -355,18 +341,20 @@ bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         // sanity check, this should trigger a service abort then restart
         // in the worst case, if we did not succeeded after 3 tries
         assert(rv == 0);
-        self->service->setServiceDefinition(
-            self->srv_name,
-            self->srv_type,
-            self->srv_stype,
-            self->srv_port);
-        //set all txt properties
-        self->service->setTxtRecords (self->map_txt);
-        self->service->start();
+
+        if (self->service) {
+            self->service->setServiceDefinition(
+                self->srv_name  ? self->srv_name  : "",
+                self->srv_type  ? self->srv_type  : "",
+                self->srv_stype ? self->srv_stype : "",
+                self->srv_port  ? self->srv_port  : "");
+            // set all txt properties
+            self->service->setTxtRecords (self->map_txt);
+            self->service->start();
+        }
     }
     else {
-        log_warning ("%s:\tUnkown API command=%s, ignoring",
-                self->name, command);
+        log_warning ("%s:\tUnkown API command=%s, ignoring", self->name, command);
     }
 
     zstr_free (&command);
@@ -377,8 +365,7 @@ bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
 
 //  --------------------------------------------------------------------------
 //  process message from ANNOUNCE stream
-static
-void s_handle_stream(fty_mdns_sd_server_t* self, zmsg_t **message_p)
+static void s_handle_stream(fty_mdns_sd_server_t* self, zmsg_t **message_p)
 {
     if (!(message_p && *message_p))
         return; // secured
@@ -386,40 +373,40 @@ void s_handle_stream(fty_mdns_sd_server_t* self, zmsg_t **message_p)
     zmsg_t *message = *message_p;
     char *cmd = zmsg_popstr (message);
 
-    if (cmd) {
-        if (streq (cmd, "INFO")) {
-            // this suppose to be an update, service must be created already
-            char *srv_name = zmsg_popstr (message);
-            char *srv_type  = zmsg_popstr (message);
-            char *srv_stype = zmsg_popstr (message);
-            char *srv_port  = zmsg_popstr (message);
+    if (cmd && streq (cmd, "INFO")) {
+        // this suppose to be an update, service must be created already
+        char *srv_name = zmsg_popstr (message);
+        char *srv_type  = zmsg_popstr (message);
+        char *srv_stype = zmsg_popstr (message);
+        char *srv_port  = zmsg_popstr (message);
 
-            log_debug("fty-mdns-sd-server: new ANNOUNCEMENT from %s", srv_name);
+        log_debug("fty-mdns-sd-server: new ANNOUNCEMENT from %s", srv_name);
 
-            zframe_t *infosframe = zmsg_pop (message);
-            zhash_t *infos = zhash_unpack (infosframe);
-            if (srv_name && srv_type && srv_stype && srv_port && infos) {
-                s_set_srv_name (self, srv_name);
-                s_set_srv_type (self, srv_type);
-                s_set_srv_stype (self, srv_stype);
-                s_set_srv_port (self, srv_port);
-                self->service->setTxtRecords (infos);
-                self->service->update ();
-            } else {
-                log_error ("Malformed IPC message received");
-            }
-            zhash_destroy (&infos);
-            zframe_destroy (&infosframe);
-
-            zstr_free(&srv_name);
-            zstr_free(&srv_type);
-            zstr_free(&srv_stype);
-            zstr_free(&srv_port);
+        zframe_t *infosframe = zmsg_pop (message);
+        zhash_t *infos = zhash_unpack (infosframe);
+        if (srv_name && srv_type && srv_stype && srv_port && infos) {
+            s_set_srv_name (self, srv_name);
+            s_set_srv_type (self, srv_type);
+            s_set_srv_stype (self, srv_stype);
+            s_set_srv_port (self, srv_port);
+            self->service->setTxtRecords (infos);
+            self->service->update ();
         }
         else {
-            log_error ("Unknown command %s", cmd);
+            log_error ("Malformed INFO message received");
         }
+        zhash_destroy (&infos);
+        zframe_destroy (&infosframe);
+
+        zstr_free(&srv_name);
+        zstr_free(&srv_type);
+        zstr_free(&srv_stype);
+        zstr_free(&srv_port);
     }
+    else {
+        log_error ("Unknown command %s", cmd);
+    }
+
     zstr_free (&cmd);
     zmsg_destroy (message_p);
 }
@@ -427,8 +414,7 @@ void s_handle_stream(fty_mdns_sd_server_t* self, zmsg_t **message_p)
 //  --------------------------------------------------------------------------
 //  process message from MAILBOX
 
-static
-void s_handle_mailbox(fty_mdns_sd_server_t* /*self*/, zmsg_t **message_p)
+static void s_handle_mailbox(fty_mdns_sd_server_t* /*self*/, zmsg_t **message_p)
 {
     //nothing to do for now
     zmsg_destroy (message_p);
@@ -437,8 +423,7 @@ void s_handle_mailbox(fty_mdns_sd_server_t* /*self*/, zmsg_t **message_p)
 //  --------------------------------------------------------------------------
 //  Create a new fty_mdns_sd_server
 
-void
-fty_mdns_sd_server (zsock_t *pipe, void *args)
+void fty_mdns_sd_server (zsock_t *pipe, void *args)
 {
     char* name = static_cast<char*>(args);
 
@@ -494,8 +479,7 @@ fty_mdns_sd_server (zsock_t *pipe, void *args)
 //  --------------------------------------------------------------------------
 //  Self test of this class
 
-void
-fty_mdns_sd_server_test (bool /*verbose*/)
+void fty_mdns_sd_server_test (bool /*verbose*/)
 {
     printf (" * fty_mdns_sd_server: \n");
 

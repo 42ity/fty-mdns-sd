@@ -54,16 +54,16 @@ static void s_destroy_txt(void *arg)
     }
 }
 
-static void s_set_txt_record(fty_mdns_sd_server_t *self,const char *key,const char *value)
+static void s_set_txt_record(fty_mdns_sd_server_t *self, const char *key, const char *value)
 {
-    if (!value) return;
-    log_debug ("s_set_txt_record(%s,%s)",key,value);
+    if (!(key && value)) return;
+    log_debug ("s_set_txt_record(%s,%s)", key, value);
     char *_value = strdup(value);
-    int rv = zhash_insert(self->map_txt,key,_value);
-    if (rv==-1) {
-        zhash_update(self->map_txt,key,_value);
+    int rv = zhash_insert(self->map_txt, key, _value);
+    if (rv == -1) {
+        zhash_update(self->map_txt, key, _value);
     }
-    zhash_freefn(self->map_txt,key,s_destroy_txt);
+    zhash_freefn(self->map_txt, key, s_destroy_txt);
 }
 
 static void s_set_txt_records(fty_mdns_sd_server_t *self, zhash_t * map_txt)
@@ -266,22 +266,21 @@ static bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         log_warning ("Empty command.");
     }
     else if (streq(command, "$TERM")) {
-        log_info ("Got $TERM");
-        zmsg_destroy (message_p);
-        zstr_free (&command);
+        log_debug ("Got $TERM");
         continue_ = false;
     }
     else if (streq (command, "CONNECT")) {
         char *endpoint = zmsg_popstr (message);
+        log_debug("fty-mdns-sd-server: CONNECT %s/%s", endpoint, self->name);
         if (!endpoint) {
             log_error ("%s:\tMissing endpoint", self->name);
         }
-        assert (endpoint);
-        int r = mlm_client_connect (self->client, endpoint, 5000, self->name);
-        if (r == -1) {
-            log_error ("%s:\tConnection to endpoint '%s' failed", self->name, endpoint);
+        else {
+            int r = mlm_client_connect (self->client, endpoint, 5000, self->name);
+            if (r == -1) {
+                log_error ("%s:\tConnection to endpoint '%s' failed", self->name, endpoint);
+            }
         }
-        log_debug("fty-mdns-sd-server: CONNECT %s/%s",endpoint,self->name);
         zstr_free (&endpoint);
     }
     else if (streq (command, "CONSUMER")) {
@@ -340,9 +339,13 @@ static bool s_handle_pipe(fty_mdns_sd_server_t* self, zmsg_t **message_p)
         }
         // sanity check, this should trigger a service abort then restart
         // in the worst case, if we did not succeeded after 3 tries
-        assert(rv == 0);
-
-        if (self->service) {
+        if (rv != 0) {
+            log_error("s_poll_fty_info() failed");
+        }
+        else if (!self->service) {
+            log_error("self->service is NULL");
+        }
+        else {
             self->service->setServiceDefinition(
                 self->srv_name  ? self->srv_name  : "",
                 self->srv_type  ? self->srv_type  : "",

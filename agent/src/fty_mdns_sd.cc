@@ -48,13 +48,11 @@ static char* s_get (zconfig_t *config, const char* key, const char* dfl) {
 
 int main (int argc, char *argv [])
 {
-    char *config_file = NULL;
-    zconfig_t *config = NULL;
-
     bool verbose = false;
     const char* actor_name = "fty-mdns-sd";
     const char* endpoint = "ipc://@/malamute";
     const char* fty_info_command = "INFO";
+    const char *config_file = NULL;
 
     ManageFtyLog::setInstanceFtylog(actor_name, FTY_COMMON_LOGGING_DEFAULT_CFG);
 
@@ -93,6 +91,7 @@ int main (int argc, char *argv [])
     }
 
     // parse config file
+    zconfig_t *config = NULL;
     if (config_file) {
         log_debug ("fty_mdns_sd:LOAD: %s", config_file);
         config = zconfig_load (config_file);

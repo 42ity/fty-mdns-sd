@@ -38,60 +38,50 @@ usage(){
     puts ("  -h|--help           this information");
 }
 
-static char*
-s_get (zconfig_t *config, const char* key, std::string &dfl) {
-    assert (config);
-    char *ret = zconfig_get (config, key, dfl.c_str());
-    if (!ret || streq (ret, ""))
-        return (char*)dfl.c_str();
-    return ret;
-}
-
-static char*
-s_get (zconfig_t *config, const char* key, char*dfl) {
+static char* s_get (zconfig_t *config, const char* key, const char* dfl) {
     assert (config);
     char *ret = zconfig_get (config, key, dfl);
     if (!ret || streq (ret, ""))
-        return dfl;
+        return const_cast<char*>(dfl);
     return ret;
 }
 
-int
-main (int argc, char *argv [])
+int main (int argc, char *argv [])
 {
-    #define default_log_config FTY_COMMON_LOGGING_DEFAULT_CFG
-
-    char *config_file = NULL;
-    zconfig_t *config = NULL;
-    char *log_config = NULL;
-
     bool verbose = false;
-    char* actor_name = (char*)"fty-mdns-sd";
-    char* endpoint = (char*)"ipc://@/malamute";
-    char* fty_info_command = (char*)"INFO";
+    const char* actor_name = "fty-mdns-sd";
+    const char* endpoint = "ipc://@/malamute";
+    const char* fty_info_command = "INFO";
+    const char *config_file = NULL;
 
-    ManageFtyLog::setInstanceFtylog(actor_name);
+    ManageFtyLog::setInstanceFtylog(actor_name, FTY_COMMON_LOGGING_DEFAULT_CFG);
 
     //parse command line
-    int argn;
-    for (argn = 1; argn < argc; argn++) {
-        char *param = NULL;
-        if (argn < argc - 1) param = argv [argn+1];
+    for (int argn = 1; argn < argc; argn++) {
+        std::string arg{argv [argn]};
+        char *param = ((argn + 1) < argc) ? argv [argn + 1] : NULL;
 
-        if (streq (argv [argn], "--help")
-        ||  streq (argv [argn], "-h")) {
+        if (arg == "--help" || arg == "-h") {
             usage();
-            return 0;
+            return EXIT_SUCCESS;
         }
-        else if (streq (argv [argn], "--verbose") || streq (argv [argn], "-v")) {
+        else if (arg == "--verbose" || arg == "-v") {
             verbose = true;
         }
-        else if (streq (argv [argn], "--endpoint") || streq (argv [argn], "-e")) {
-            if (param) endpoint = param;
+        else if (arg == "--endpoint" || arg == "-e") {
+            if (!param) {
+                printf ("Undefined argument: %s\n", argv [argn]);
+                return EXIT_FAILURE;
+            }
+            endpoint = param;
             ++argn;
         }
-        else if (streq (argv [argn], "--config") || streq (argv [argn], "-c")) {
-            if (param) config_file = param;
+        else if (arg == "--config" || arg == "-c") {
+            if (!param) {
+                printf ("Undefined argument: %s\n", argv [argn]);
+                return EXIT_FAILURE;
+            }
+            config_file = param;
             ++argn;
         }
         else {
@@ -100,38 +90,32 @@ main (int argc, char *argv [])
         }
     }
 
-    //parse config file
+    // parse config file
+    zconfig_t *config = NULL;
     if (config_file) {
         log_debug ("fty_mdns_sd:LOAD: %s", config_file);
         config = zconfig_load (config_file);
         if (!config) {
             log_error ("Failed to load config file %s: %m", config_file);
-            exit (EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
-        // VERBOSE
+
         if (streq (zconfig_get (config, "server/verbose", "false"), "true")) {
             verbose = true;
         }
 
         endpoint = s_get (config, "malamute/endpoint", endpoint);
         actor_name = s_get (config, "malamute/address", actor_name);
-
         fty_info_command = s_get (config, "fty-info/command", fty_info_command);
-
-        log_config = zconfig_get (config, "log/config", default_log_config);
-    }
-    else {
-        log_config = (char *)default_log_config;
     }
 
-    ManageFtyLog::getInstanceFtylog()->setConfigFile(std::string (log_config));
     if (verbose) {
         ManageFtyLog::getInstanceFtylog()->setVerboseMode();
     }
 
-    log_info ("fty_mdns_sd - starting...");
+    log_info ("%s - starting...", actor_name);
 
-    zactor_t *server = zactor_new (fty_mdns_sd_server, (void*)actor_name);
+    zactor_t *server = zactor_new (fty_mdns_sd_server, const_cast<char*>(actor_name));
     if (!server) {
         log_fatal("Failed to create server");
         return EXIT_FAILURE;
@@ -139,11 +123,11 @@ main (int argc, char *argv [])
     zstr_sendx (server, "CONNECT", endpoint, NULL);
     zstr_sendx (server, "CONSUMER", "ANNOUNCE", ".*", NULL);
 
-    ////do first announcement
+    // do first announcement
     zclock_sleep (5000);
     zstr_sendx (server, "DO-DEFAULT-ANNOUNCE", fty_info_command, NULL);
 
-    log_info ("fty_mdns_sd - started");
+    log_info ("%s - started", actor_name);
 
     // main loop, accept any message back from server
     // copy from src/malamute.c under MPL license
@@ -156,7 +140,7 @@ main (int argc, char *argv [])
         zstr_free (&msg);
     }
 
-    log_info ("fty_mdns_sd - ended");
+    log_info ("%s - ended", actor_name);
 
     zactor_destroy (&server);
     zconfig_destroy (&config);
